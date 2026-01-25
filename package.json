@@ -1,10 +1,10 @@
 {
-  "name": "@rahul-choudhury/create-react-app-extras",
+  "name": "@rahul-choudhury/react-extras",
   "version": "0.1.0",
   "description": "Set up deployment, linting, and editor configuration for React apps",
   "type": "module",
   "bin": {
-    "create-react-app-extras": "./dist/index.js"
+    "react-extras": "./dist/index.js"
   },
   "files": [
     "dist",
