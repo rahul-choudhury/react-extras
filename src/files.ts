@@ -30,6 +30,11 @@ const BASE_TEMPLATE_FILES: TemplateFile[] = [
         label: "VS Code extensions",
     },
     {
+        templatePath: "editorconfig",
+        targetPath: ".editorconfig",
+        label: "EditorConfig",
+    },
+    {
         templatePath: "Dockerfile",
         targetPath: "Dockerfile",
         label: "Dockerfile",
