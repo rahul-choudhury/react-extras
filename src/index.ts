@@ -99,6 +99,7 @@ async function main() {
     const s = p.spinner();
 
     // Handle Next.js specific configuration
+    let nextConfigManualRequired = false;
     if (framework === "nextjs") {
         s.start("Configuring Next.js for standalone output...");
         const result = ensureStandaloneOutput(cwd);
@@ -110,8 +111,13 @@ async function main() {
         } else if (result.status === "already-configured") {
             s.stop("Next.js already configured for standalone output");
         } else {
-            s.stop("Manual configuration required");
-            p.log.warning(result.message);
+            nextConfigManualRequired = true;
+            s.stop("⚠ Could not update next.config automatically");
+            p.log.error(
+                `Action required: ${result.message}\n` +
+                    `   File: ${result.path}\n` +
+                    `   Without this, Docker deployment will fail.`,
+            );
         }
     }
 
@@ -153,14 +159,29 @@ async function main() {
         p.log.warning(`Run manually: ${installCmd}`);
     }
 
-    p.outro("Setup complete!");
+    if (nextConfigManualRequired) {
+        p.outro("Setup complete (with warnings)");
+    } else {
+        p.outro("Setup complete!");
+    }
 
     p.log.message("Next steps:");
-    p.log.message("  1. Review the created files");
-    p.log.message(
-        "  2. Update .github/workflows/deploy.yml with your settings",
-    );
-    p.log.message("  3. Make a commit to test the pre-commit hook");
+    if (nextConfigManualRequired) {
+        p.log.message(
+            '  1. ⚠ Add output: "standalone" to your next.config (required for Docker)',
+        );
+        p.log.message("  2. Review the created files");
+        p.log.message(
+            "  3. Update .github/workflows/deploy.yml with your settings",
+        );
+        p.log.message("  4. Make a commit to test the pre-commit hook");
+    } else {
+        p.log.message("  1. Review the created files");
+        p.log.message(
+            "  2. Update .github/workflows/deploy.yml with your settings",
+        );
+        p.log.message("  3. Make a commit to test the pre-commit hook");
+    }
 }
 
 main().catch((err) => {
