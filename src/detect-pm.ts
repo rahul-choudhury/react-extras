@@ -1,0 +1,96 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
+export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
+
+const LOCK_FILES: Record<string, PackageManager> = {
+    "bun.lock": "bun",
+    "bun.lockb": "bun",
+    "pnpm-lock.yaml": "pnpm",
+    "yarn.lock": "yarn",
+    "package-lock.json": "npm",
+};
+
+export function detectPackageManager(cwd: string): PackageManager {
+    for (const [lockFile, pm] of Object.entries(LOCK_FILES)) {
+        if (existsSync(join(cwd, lockFile))) {
+            return pm;
+        }
+    }
+    return "npm";
+}
+
+export function getInstallCommand(
+    pm: PackageManager,
+    packages: string[],
+): string {
+    const pkgList = packages.join(" ");
+    switch (pm) {
+        case "bun":
+            return `bun add -D ${pkgList}`;
+        case "pnpm":
+            return `pnpm add -D ${pkgList}`;
+        case "yarn":
+            return `yarn add -D ${pkgList}`;
+        case "npm":
+            return `npm install -D ${pkgList}`;
+    }
+}
+
+export interface PMConfig {
+    setupAction: string;
+    install: string;
+    run: string;
+    lockfile: string;
+    dockerBase: string;
+    frozenInstall: string;
+}
+
+function getNodeMajorVersion(): string {
+    return process.version.split(".")[0].replace("v", "");
+}
+
+export function getPMConfig(pm: PackageManager): PMConfig {
+    const nodeVersion = getNodeMajorVersion();
+
+    switch (pm) {
+        case "bun":
+            return {
+                setupAction: "uses: oven-sh/setup-bun@v2",
+                install: "bun install",
+                run: "bun run",
+                lockfile: "bun.lock",
+                dockerBase: "oven/bun:alpine",
+                frozenInstall: "bun install --frozen-lockfile",
+            };
+        case "pnpm":
+            return {
+                setupAction: "uses: pnpm/action-setup@v4",
+                install: "pnpm install",
+                run: "pnpm",
+                lockfile: "pnpm-lock.yaml",
+                dockerBase: `node:${nodeVersion}-alpine`,
+                frozenInstall:
+                    "corepack enable && pnpm install --frozen-lockfile",
+            };
+        case "yarn":
+            return {
+                setupAction: `uses: actions/setup-node@v4\n        with:\n          node-version: ${nodeVersion}\n          cache: yarn`,
+                install: "yarn install",
+                run: "yarn",
+                lockfile: "yarn.lock",
+                dockerBase: `node:${nodeVersion}-alpine`,
+                frozenInstall:
+                    "corepack enable && yarn install --frozen-lockfile",
+            };
+        case "npm":
+            return {
+                setupAction: `uses: actions/setup-node@v4\n        with:\n          node-version: ${nodeVersion}\n          cache: npm`,
+                install: "npm ci",
+                run: "npm run",
+                lockfile: "package-lock.json",
+                dockerBase: `node:${nodeVersion}-alpine`,
+                frozenInstall: "npm ci",
+            };
+    }
+}
