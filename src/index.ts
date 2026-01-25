@@ -133,7 +133,7 @@ async function main() {
             s.stop("Next.js already configured for standalone output");
         } else {
             nextConfigManualRequired = true;
-            s.stop("⚠ Could not update next.config automatically");
+            s.stop("! Could not update next.config automatically");
             p.log.error(
                 `Action required: ${result.message}\n` +
                     `   File: ${result.path}\n` +
@@ -154,14 +154,17 @@ async function main() {
 
     s.start("Updating package.json...");
     const lintStagedConfig = getLintStagedConfig(tooling);
-    const { addedPrepare, addedLintStaged } = updatePackageJson(
+    const { addedPrepare, addedLintStaged, addedCheck } = updatePackageJson({
         cwd,
         lintStagedConfig,
-    );
+        framework,
+        tooling,
+    });
 
     const updates: string[] = [];
     if (addedPrepare) updates.push("prepare script");
     if (addedLintStaged) updates.push("lint-staged config");
+    if (addedCheck) updates.push("check script");
 
     if (updates.length > 0) {
         s.stop(`Updated package.json: added ${updates.join(", ")}`);
@@ -177,7 +180,7 @@ async function main() {
         s.stop("Dependencies installed");
     } catch {
         s.stop("Failed to install dependencies");
-        p.log.warning(`Run manually: ${installCmd}`);
+        p.log.warn(`Run manually: ${installCmd}`);
     }
 
     if (nextConfigManualRequired) {
@@ -189,7 +192,7 @@ async function main() {
     p.log.message("Next steps:");
     if (nextConfigManualRequired) {
         p.log.message(
-            '  1. ⚠ Add output: "standalone" to your next.config (required for Docker)',
+            '  1. ! Add output: "standalone" to your next.config (required for Docker)',
         );
         p.log.message("  2. Review the created files");
         p.log.message(
