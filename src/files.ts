@@ -39,6 +39,11 @@ const BASE_TEMPLATE_FILES: TemplateFile[] = [
         targetPath: "Dockerfile",
         label: "Dockerfile",
     },
+    {
+        templatePath: "lib/api-client.ts",
+        targetPath: "src/lib/api-client.ts",
+        label: "API client",
+    },
 ];
 
 const NGINX_TEMPLATE: TemplateFile = {
