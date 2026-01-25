@@ -35,14 +35,35 @@ async function main() {
         process.exit(1);
     }
 
-    const pm = detectPackageManager(cwd);
-    p.log.info(`Detected package manager: ${pm}`);
+    const pmResult = detectPackageManager(cwd);
+    const pm = pmResult.pm;
+    if (pmResult.inferred) {
+        p.log.warn(
+            `No lock file found, assuming package manager: ${pm} (run "${pm} install" first if this is wrong)`,
+        );
+    } else {
+        p.log.info(`Detected package manager: ${pm}`);
+    }
 
-    const framework = detectFramework(cwd);
-    p.log.info(`Detected framework: ${getFrameworkLabel(framework)}`);
+    const frameworkResult = detectFramework(cwd);
+    const framework = frameworkResult.framework;
+    if (frameworkResult.inferred) {
+        p.log.warn(
+            `Could not detect framework, assuming: ${getFrameworkLabel(framework)} (Dockerfile and workflows may need adjustment)`,
+        );
+    } else {
+        p.log.info(`Detected framework: ${getFrameworkLabel(framework)}`);
+    }
 
-    const tooling = detectTooling(cwd);
-    p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
+    const toolingResult = detectTooling(cwd);
+    const tooling = toolingResult.tooling;
+    if (toolingResult.inferred) {
+        p.log.warn(
+            `No linter config found, assuming: ${getToolingLabel(tooling)} (lint-staged config may need adjustment)`,
+        );
+    } else {
+        p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
+    }
 
     const templateFiles = getTemplateFiles(framework);
     const fileStatus = checkExistingFiles(cwd, templateFiles);

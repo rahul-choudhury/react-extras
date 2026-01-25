@@ -3,6 +3,11 @@ import { join } from "node:path";
 
 export type PackageManager = "bun" | "pnpm" | "yarn" | "npm";
 
+export interface PMDetectionResult {
+    pm: PackageManager;
+    inferred: boolean;
+}
+
 const LOCK_FILES: Record<string, PackageManager> = {
     "bun.lock": "bun",
     "bun.lockb": "bun",
@@ -11,13 +16,13 @@ const LOCK_FILES: Record<string, PackageManager> = {
     "package-lock.json": "npm",
 };
 
-export function detectPackageManager(cwd: string): PackageManager {
+export function detectPackageManager(cwd: string): PMDetectionResult {
     for (const [lockFile, pm] of Object.entries(LOCK_FILES)) {
         if (existsSync(join(cwd, lockFile))) {
-            return pm;
+            return { pm, inferred: false };
         }
     }
-    return "npm";
+    return { pm: "npm", inferred: true };
 }
 
 export function getInstallCommand(

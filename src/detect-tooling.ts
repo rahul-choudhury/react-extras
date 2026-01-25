@@ -3,16 +3,21 @@ import { join } from "node:path";
 
 export type Tooling = "biome" | "eslint-prettier";
 
+export interface ToolingDetectionResult {
+    tooling: Tooling;
+    inferred: boolean;
+}
+
 export interface LintStagedConfig {
     [pattern: string]: string | string[];
 }
 
-export function detectTooling(cwd: string): Tooling {
+export function detectTooling(cwd: string): ToolingDetectionResult {
     if (
         existsSync(join(cwd, "biome.json")) ||
         existsSync(join(cwd, "biome.jsonc"))
     ) {
-        return "biome";
+        return { tooling: "biome", inferred: false };
     }
 
     const pkgPath = join(cwd, "package.json");
@@ -25,12 +30,17 @@ export function detectTooling(cwd: string): Tooling {
             };
 
             if (allDeps["@biomejs/biome"]) {
-                return "biome";
+                return { tooling: "biome", inferred: false };
+            }
+
+            // Check for ESLint or Prettier specifically
+            if (allDeps.eslint || allDeps.prettier) {
+                return { tooling: "eslint-prettier", inferred: false };
             }
         } catch {}
     }
 
-    return "eslint-prettier";
+    return { tooling: "eslint-prettier", inferred: true };
 }
 
 export function getLintStagedConfig(tooling: Tooling): LintStagedConfig {
