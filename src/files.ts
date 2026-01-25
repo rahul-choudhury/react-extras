@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { Framework } from "./detect-framework.js";
 import { getPMConfig, type PackageManager } from "./detect-pm.js";
 import type { Tooling } from "./detect-tooling.js";
 
@@ -12,7 +13,7 @@ export interface TemplateFile {
     label: string;
 }
 
-export const TEMPLATE_FILES: TemplateFile[] = [
+const BASE_TEMPLATE_FILES: TemplateFile[] = [
     {
         templatePath: "github/workflows/deploy.yml",
         targetPath: ".github/workflows/deploy.yml",
@@ -33,12 +34,21 @@ export const TEMPLATE_FILES: TemplateFile[] = [
         targetPath: "Dockerfile",
         label: "Dockerfile",
     },
-    {
-        templatePath: "nginx.conf",
-        targetPath: "nginx.conf",
-        label: "Nginx config",
-    },
 ];
+
+const NGINX_TEMPLATE: TemplateFile = {
+    templatePath: "nginx.conf",
+    targetPath: "nginx.conf",
+    label: "Nginx config",
+};
+
+export function getTemplateFiles(framework: Framework): TemplateFile[] {
+    if (framework === "nextjs") {
+        return [...BASE_TEMPLATE_FILES];
+    }
+
+    return [...BASE_TEMPLATE_FILES, NGINX_TEMPLATE];
+}
 
 export function getTemplatesDir(): string {
     return join(__dirname, "..", "templates");
@@ -46,8 +56,9 @@ export function getTemplatesDir(): string {
 
 export function checkExistingFiles(
     cwd: string,
+    templateFiles: TemplateFile[],
 ): { file: TemplateFile; exists: boolean }[] {
-    return TEMPLATE_FILES.map((file) => ({
+    return templateFiles.map((file) => ({
         file,
         exists: existsSync(join(cwd, file.targetPath)),
     }));
@@ -58,6 +69,7 @@ export function copyTemplateFile(
     templateFile: TemplateFile,
     pm: PackageManager,
     tooling: Tooling,
+    framework: Framework,
 ): void {
     const targetPath = join(cwd, templateFile.targetPath);
 
@@ -70,7 +82,7 @@ export function copyTemplateFile(
     if (templateFile.targetPath === ".github/workflows/deploy.yml") {
         content = generateDeployYml(pm);
     } else if (templateFile.targetPath === "Dockerfile") {
-        content = generateDockerfile(pm);
+        content = generateDockerfile(pm, framework);
     } else if (templateFile.targetPath === ".vscode/extensions.json") {
         content = generateExtensionsJson(tooling);
     } else {
@@ -131,7 +143,14 @@ jobs:
 `;
 }
 
-function generateDockerfile(pm: PackageManager): string {
+function generateDockerfile(pm: PackageManager, framework: Framework): string {
+    if (framework === "nextjs") {
+        return generateNextjsDockerfile(pm);
+    }
+    return generateViteDockerfile(pm);
+}
+
+function generateViteDockerfile(pm: PackageManager): string {
     const config = getPMConfig(pm);
     return `FROM ${config.dockerBase} AS base
 
@@ -153,6 +172,77 @@ COPY --from=builder /app/dist .
 COPY --from=builder /app/nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
+`;
+}
+
+function generateNextjsDockerfile(pm: PackageManager): string {
+    const config = getPMConfig(pm);
+
+    // Package manager specific setup for deps stage
+    let depsSetup: string;
+    let depsCopy: string;
+    let depsInstall: string;
+
+    // Package manager specific setup for builder stage
+    let builderSetup: string;
+    let builderRun: string;
+
+    switch (pm) {
+        case "pnpm":
+            depsSetup = "RUN corepack enable pnpm\n";
+            depsCopy = "COPY package.json pnpm-lock.yaml ./";
+            depsInstall = "RUN pnpm install --frozen-lockfile";
+            builderSetup = "RUN corepack enable pnpm\n";
+            builderRun = "RUN pnpm run build";
+            break;
+        case "yarn":
+            depsSetup = "RUN corepack enable yarn\n";
+            depsCopy = "COPY package.json yarn.lock ./";
+            depsInstall = "RUN yarn install --frozen-lockfile";
+            builderSetup = "RUN corepack enable yarn\n";
+            builderRun = "RUN yarn build";
+            break;
+        case "bun":
+            depsSetup = "";
+            depsCopy = "COPY package.json bun.lock ./";
+            depsInstall = "RUN bun install --frozen-lockfile";
+            builderSetup = "";
+            builderRun = "RUN bun run build";
+            break;
+        default:
+            depsSetup = "";
+            depsCopy = "COPY package.json package-lock.json ./";
+            depsInstall = "RUN npm ci";
+            builderSetup = "";
+            builderRun = "RUN npm run build";
+            break;
+    }
+
+    return `FROM ${config.dockerBase} AS base
+
+FROM base AS deps
+WORKDIR /app
+${depsSetup}${depsCopy}
+${depsInstall}
+
+FROM base AS builder
+WORKDIR /app
+${builderSetup}COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+ENV NEXT_TELEMETRY_DISABLED=1
+${builderRun}
+
+FROM base AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+USER nextjs
+EXPOSE 3000
+ENV PORT=3000
+CMD ["node", "server.js"]
 `;
 }
 

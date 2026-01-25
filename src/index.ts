@@ -8,13 +8,19 @@ const execAsync = promisify(exec);
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as p from "@clack/prompts";
+import { detectFramework, getFrameworkLabel } from "./detect-framework.js";
 import { detectPackageManager, getInstallCommand } from "./detect-pm.js";
 import {
     detectTooling,
     getLintStagedConfig,
     getToolingLabel,
 } from "./detect-tooling.js";
-import { checkExistingFiles, copyTemplateFile } from "./files.js";
+import {
+    checkExistingFiles,
+    copyTemplateFile,
+    getTemplateFiles,
+} from "./files.js";
+import { ensureStandaloneOutput } from "./next-config.js";
 import { updatePackageJson } from "./package-json.js";
 
 async function main() {
@@ -32,16 +38,26 @@ async function main() {
     const pm = detectPackageManager(cwd);
     p.log.info(`Detected package manager: ${pm}`);
 
+    const framework = detectFramework(cwd);
+    p.log.info(`Detected framework: ${getFrameworkLabel(framework)}`);
+
     const tooling = detectTooling(cwd);
     p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
 
-    const fileStatus = checkExistingFiles(cwd);
+    const templateFiles = getTemplateFiles(framework);
+    const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
     p.log.message("Files to create:");
     for (const { file, exists } of fileStatus) {
         const status = exists ? " (exists, will overwrite)" : "";
         p.log.message(`  ${file.targetPath}${status}`);
+    }
+
+    if (framework === "nextjs") {
+        p.log.message(
+            "  next.config.ts (will be updated for standalone output)",
+        );
     }
 
     p.log.message("Dependencies to install:");
@@ -81,11 +97,29 @@ async function main() {
     }
 
     const s = p.spinner();
+
+    // Handle Next.js specific configuration
+    if (framework === "nextjs") {
+        s.start("Configuring Next.js for standalone output...");
+        const result = ensureStandaloneOutput(cwd);
+
+        if (result.status === "created") {
+            s.stop("Created next.config.ts with standalone output");
+        } else if (result.status === "updated") {
+            s.stop("Updated next.config with standalone output");
+        } else if (result.status === "already-configured") {
+            s.stop("Next.js already configured for standalone output");
+        } else {
+            s.stop("Manual configuration required");
+            p.log.warning(result.message);
+        }
+    }
+
     s.start("Copying template files...");
 
     for (const { file } of fileStatus) {
         if (!filesToSkip.includes(file.targetPath)) {
-            copyTemplateFile(cwd, file, pm, tooling);
+            copyTemplateFile(cwd, file, pm, tooling, framework);
         }
     }
 
