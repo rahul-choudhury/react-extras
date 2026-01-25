@@ -2,9 +2,24 @@
   "name": "@rahul-choudhury/react-extras",
   "version": "0.1.0",
   "description": "Set up deployment, linting, and editor configuration for React apps",
+  "author": "Rahul Choudhury",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rahul-choudhury/react-extras.git"
+  },
+  "keywords": [
+    "react",
+    "nextjs",
+    "vite",
+    "docker",
+    "deployment",
+    "husky",
+    "biome",
+    "eslint"
+  ],
   "type": "module",
   "bin": {
-    "react-extras": "./dist/index.js"
+    "react-extras": "dist/index.js"
   },
   "files": [
     "dist",
