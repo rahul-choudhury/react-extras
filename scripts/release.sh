@@ -8,6 +8,8 @@ if [[ ! "$VERSION_TYPE" =~ ^(patch|minor|major)$ ]]; then
   exit 1
 fi
 
+bun run build && bun test
+
 NEW_VERSION=$(npm version "$VERSION_TYPE" --no-git-tag-version)
 git add package.json
 git commit -m "chore: release $NEW_VERSION"
