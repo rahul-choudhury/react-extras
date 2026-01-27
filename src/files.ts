@@ -7,57 +7,94 @@ import type { Tooling } from "./detect-tooling.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+interface GeneratorContext {
+    pm: PackageManager;
+    tooling: Tooling;
+    framework: Framework;
+}
+
+type ContentResolver =
+    | { type: "static"; templatePath: string }
+    | { type: "dynamic"; generate: (ctx: GeneratorContext) => string };
+
+interface TemplateDefinition {
+    targetPath: string;
+    label: string;
+    content: ContentResolver;
+    when?: (ctx: GeneratorContext) => boolean;
+}
+
 export interface TemplateFile {
     templatePath: string;
     targetPath: string;
     label: string;
 }
 
-const BASE_TEMPLATE_FILES: TemplateFile[] = [
+const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     {
-        templatePath: "github/workflows/deploy.yml",
         targetPath: ".github/workflows/deploy.yml",
         label: "GitHub Actions workflow",
+        content: {
+            type: "dynamic",
+            generate: (ctx) => generateDeployYml(ctx.pm),
+        },
     },
     {
-        templatePath: "husky/pre-commit",
-        targetPath: ".husky/pre-commit",
-        label: "Husky pre-commit hook",
+    	targetPath: ".husky/pre-commit",
+    	label: "Husky pre-commit hook",
+    	content: { type: "dynamic", generate: (ctx) => generatePreCommitHook(ctx.pm) },
     },
     {
-        templatePath: "vscode/extensions.json",
         targetPath: ".vscode/extensions.json",
         label: "VS Code extensions",
+        content: {
+            type: "dynamic",
+            generate: (ctx) => generateExtensionsJson(ctx.tooling),
+        },
     },
     {
-        templatePath: "editorconfig",
         targetPath: ".editorconfig",
         label: "EditorConfig",
+        content: { type: "static", templatePath: "editorconfig" },
     },
     {
-        templatePath: "Dockerfile",
         targetPath: "Dockerfile",
         label: "Dockerfile",
+        content: {
+            type: "dynamic",
+            generate: (ctx) => generateDockerfile(ctx.pm, ctx.framework),
+        },
     },
     {
-        templatePath: "lib/api-client.ts",
         targetPath: "src/lib/api-client.ts",
         label: "API client",
+        content: { type: "static", templatePath: "lib/api-client.ts" },
+    },
+    {
+        targetPath: "nginx.conf",
+        label: "Nginx config",
+        content: { type: "static", templatePath: "nginx.conf" },
+        when: (ctx) => ctx.framework !== "nextjs",
     },
 ];
 
-const NGINX_TEMPLATE: TemplateFile = {
-    templatePath: "nginx.conf",
-    targetPath: "nginx.conf",
-    label: "Nginx config",
-};
-
 export function getTemplateFiles(framework: Framework): TemplateFile[] {
-    if (framework === "nextjs") {
-        return [...BASE_TEMPLATE_FILES];
-    }
+    const ctx: GeneratorContext = {
+    	pm: "npm",
+    	tooling: "eslint-prettier",
+    	framework,
+    };
 
-    return [...BASE_TEMPLATE_FILES, NGINX_TEMPLATE];
+    return TEMPLATE_DEFINITIONS.filter((def) => !def.when || def.when(ctx)).map(
+        (def) => ({
+            templatePath:
+                def.content.type === "static"
+                    ? def.content.templatePath
+                    : def.targetPath,
+            targetPath: def.targetPath,
+            label: def.label,
+        }),
+    );
 }
 
 export function getTemplatesDir(): string {
@@ -82,26 +119,32 @@ export function copyTemplateFile(
     framework: Framework,
 ): void {
     const targetPath = join(cwd, templateFile.targetPath);
-
     const targetDir = dirname(targetPath);
+
     if (!existsSync(targetDir)) {
         mkdirSync(targetDir, { recursive: true });
     }
 
-    let content: string;
-    if (templateFile.targetPath === ".github/workflows/deploy.yml") {
-        content = generateDeployYml(pm);
-    } else if (templateFile.targetPath === "Dockerfile") {
-        content = generateDockerfile(pm, framework);
-    } else if (templateFile.targetPath === ".vscode/extensions.json") {
-        content = generateExtensionsJson(tooling);
-    } else {
-        const templatesDir = getTemplatesDir();
-        const sourcePath = join(templatesDir, templateFile.templatePath);
-        content = readFileSync(sourcePath, "utf-8");
+    const def = TEMPLATE_DEFINITIONS.find(
+        (d) => d.targetPath === templateFile.targetPath,
+    );
+    if (!def) {
+        throw new Error(`Unknown template: ${templateFile.targetPath}`);
     }
 
+    const content = resolveContent(def.content, { pm, tooling, framework });
     writeFileSync(targetPath, content);
+}
+
+function resolveContent(
+    resolver: ContentResolver,
+    ctx: GeneratorContext,
+): string {
+    if (resolver.type === "dynamic") {
+        return resolver.generate(ctx);
+    }
+    const templatesDir = getTemplatesDir();
+    return readFileSync(join(templatesDir, resolver.templatePath), "utf-8");
 }
 
 function generateDeployYml(pm: PackageManager): string {
@@ -188,12 +231,9 @@ CMD ["nginx", "-g", "daemon off;"]
 function generateNextjsDockerfile(pm: PackageManager): string {
     const config = getPMConfig(pm);
 
-    // Package manager specific setup for deps stage
     let depsSetup: string;
     let depsCopy: string;
     let depsInstall: string;
-
-    // Package manager specific setup for builder stage
     let builderSetup: string;
     let builderRun: string;
 
@@ -253,6 +293,11 @@ EXPOSE 3000
 ENV PORT=3000
 CMD ["node", "server.js"]
 `;
+}
+
+function generatePreCommitHook(pm: PackageManager): string {
+	const config = getPMConfig(pm);
+	return `${config.runX} lint-staged\n`;
 }
 
 function generateExtensionsJson(tooling: Tooling): string {

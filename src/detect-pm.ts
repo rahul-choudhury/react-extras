@@ -46,6 +46,7 @@ export interface PMConfig {
     setupAction: string;
     install: string;
     run: string;
+    runX: string;
     lockfile: string;
     dockerBase: string;
     frozenInstall: string;
@@ -64,6 +65,7 @@ export function getPMConfig(pm: PackageManager): PMConfig {
                 setupAction: "uses: oven-sh/setup-bun@v2",
                 install: "bun install",
                 run: "bun run",
+                runX: "bun run",
                 lockfile: "bun.lock",
                 dockerBase: "oven/bun:alpine",
                 frozenInstall: "bun install --frozen-lockfile",
@@ -73,6 +75,7 @@ export function getPMConfig(pm: PackageManager): PMConfig {
                 setupAction: "uses: pnpm/action-setup@v4",
                 install: "pnpm install",
                 run: "pnpm",
+                runX: "pnpm exec",
                 lockfile: "pnpm-lock.yaml",
                 dockerBase: `node:${nodeVersion}-alpine`,
                 frozenInstall:
@@ -83,6 +86,7 @@ export function getPMConfig(pm: PackageManager): PMConfig {
                 setupAction: `uses: actions/setup-node@v4\n        with:\n          node-version: ${nodeVersion}\n          cache: yarn`,
                 install: "yarn install",
                 run: "yarn",
+                runX: "yarn run",
                 lockfile: "yarn.lock",
                 dockerBase: `node:${nodeVersion}-alpine`,
                 frozenInstall:
@@ -93,6 +97,7 @@ export function getPMConfig(pm: PackageManager): PMConfig {
                 setupAction: `uses: actions/setup-node@v4\n        with:\n          node-version: ${nodeVersion}\n          cache: npm`,
                 install: "npm ci",
                 run: "npm run",
+                runX: "npx",
                 lockfile: "package-lock.json",
                 dockerBase: `node:${nodeVersion}-alpine`,
                 frozenInstall: "npm ci",
