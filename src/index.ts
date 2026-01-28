@@ -65,7 +65,7 @@ async function main() {
         p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
     }
 
-    const templateFiles = getTemplateFiles(framework);
+    const templateFiles = getTemplateFiles(cwd, framework);
     const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 

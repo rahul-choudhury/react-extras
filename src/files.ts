@@ -8,6 +8,7 @@ import type { Tooling } from "./detect-tooling.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 interface GeneratorContext {
+    cwd: string;
     pm: PackageManager;
     tooling: Tooling;
     framework: Framework;
@@ -18,7 +19,7 @@ type ContentResolver =
     | { type: "dynamic"; generate: (ctx: GeneratorContext) => string };
 
 interface TemplateDefinition {
-    targetPath: string;
+    targetPath: string | ((ctx: GeneratorContext) => string);
     label: string;
     content: ContentResolver;
     when?: (ctx: GeneratorContext) => boolean;
@@ -69,7 +70,10 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         },
     },
     {
-        targetPath: "lib/api-client.ts",
+        targetPath: (ctx) =>
+            existsSync(join(ctx.cwd, "src"))
+                ? "src/lib/api-client.ts"
+                : "lib/api-client.ts",
         label: "API client",
         content: { type: "static", templatePath: "lib/api-client.ts" },
     },
@@ -81,22 +85,32 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
     },
 ];
 
-export function getTemplateFiles(framework: Framework): TemplateFile[] {
+export function getTemplateFiles(
+    cwd: string,
+    framework: Framework,
+): TemplateFile[] {
     const ctx: GeneratorContext = {
+        cwd,
         pm: "npm",
         tooling: "eslint-prettier",
         framework,
     };
 
     return TEMPLATE_DEFINITIONS.filter((def) => !def.when || def.when(ctx)).map(
-        (def) => ({
-            templatePath:
-                def.content.type === "static"
-                    ? def.content.templatePath
-                    : def.targetPath,
-            targetPath: def.targetPath,
-            label: def.label,
-        }),
+        (def) => {
+            const targetPath =
+                typeof def.targetPath === "function"
+                    ? def.targetPath(ctx)
+                    : def.targetPath;
+            return {
+                templatePath:
+                    def.content.type === "static"
+                        ? def.content.templatePath
+                        : targetPath,
+                targetPath,
+                label: def.label,
+            };
+        },
     );
 }
 
