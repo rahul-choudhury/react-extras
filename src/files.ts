@@ -3,11 +3,17 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Framework } from "./detect-framework.js";
 import { getPMConfig, type PackageManager } from "./detect-pm.js";
-import type { Tooling } from "./detect-tooling.js";
+import { getLintStagedConfig, type Tooling } from "./detect-tooling.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-interface GeneratorContext {
+function getCheckScript(tooling: Tooling): string {
+    return tooling === "biome"
+        ? "biome check ."
+        : "eslint . && prettier --check .";
+}
+
+export interface GeneratorContext {
     cwd: string;
     pm: PackageManager;
     tooling: Tooling;
@@ -18,17 +24,32 @@ type ContentResolver =
     | { type: "static"; templatePath: string }
     | { type: "dynamic"; generate: (ctx: GeneratorContext) => string };
 
+export interface PackageJsonMods {
+    scripts?: Record<string, string | ((ctx: GeneratorContext) => string)>;
+    config?: Record<string, unknown | ((ctx: GeneratorContext) => unknown)>;
+}
+
 interface TemplateDefinition {
     targetPath: string | ((ctx: GeneratorContext) => string);
     label: string;
     content: ContentResolver;
     when?: (ctx: GeneratorContext) => boolean;
+    devDependencies?: string[];
+    packageJson?:
+        | PackageJsonMods
+        | ((ctx: GeneratorContext) => PackageJsonMods);
 }
+
+type PackageJsonResolver =
+    | PackageJsonMods
+    | ((ctx: GeneratorContext) => PackageJsonMods);
 
 export interface TemplateFile {
     templatePath: string;
     targetPath: string;
     label: string;
+    devDependencies: string[];
+    packageJson?: PackageJsonResolver;
 }
 
 const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
@@ -39,6 +60,12 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
             type: "dynamic",
             generate: (ctx) => generateDeployYml(ctx.pm),
         },
+        packageJson: (ctx) => ({
+            scripts: {
+                check: getCheckScript(ctx.tooling),
+                typecheck: "tsc --noEmit",
+            },
+        }),
     },
     {
         targetPath: ".husky/pre-commit",
@@ -47,6 +74,11 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
             type: "dynamic",
             generate: (ctx) => generatePreCommitHook(ctx.pm),
         },
+        devDependencies: ["husky", "lint-staged"],
+        packageJson: (ctx) => ({
+            scripts: { prepare: "husky" },
+            config: { "lint-staged": getLintStagedConfig(ctx.tooling) },
+        }),
     },
     {
         targetPath: ".vscode/extensions.json",
@@ -109,6 +141,8 @@ export function getTemplateFiles(
                         : targetPath,
                 targetPath,
                 label: def.label,
+                devDependencies: def.devDependencies ?? [],
+                packageJson: def.packageJson,
             };
         },
     );
@@ -116,6 +150,60 @@ export function getTemplateFiles(
 
 export function getTemplatesDir(): string {
     return join(__dirname, "..", "templates");
+}
+
+export function getRequiredDependencies(
+    templateFiles: TemplateFile[],
+): string[] {
+    const deps = new Set<string>();
+    for (const file of templateFiles) {
+        for (const dep of file.devDependencies) {
+            deps.add(dep);
+        }
+    }
+    return [...deps];
+}
+
+export interface ResolvedPackageJsonMods {
+    scripts: Record<string, string>;
+    config: Record<string, unknown>;
+}
+
+export function getPackageJsonMods(
+    templateFiles: TemplateFile[],
+    ctx: GeneratorContext,
+): ResolvedPackageJsonMods {
+    const scripts: Record<string, string> = {};
+    const config: Record<string, unknown> = {};
+
+    for (const file of templateFiles) {
+        if (!file.packageJson) continue;
+
+        const mods =
+            typeof file.packageJson === "function"
+                ? file.packageJson(ctx)
+                : file.packageJson;
+
+        if (mods.scripts) {
+            for (const [key, value] of Object.entries(mods.scripts)) {
+                if (!(key in scripts)) {
+                    scripts[key] =
+                        typeof value === "function" ? value(ctx) : value;
+                }
+            }
+        }
+
+        if (mods.config) {
+            for (const [key, value] of Object.entries(mods.config)) {
+                if (!(key in config)) {
+                    config[key] =
+                        typeof value === "function" ? value(ctx) : value;
+                }
+            }
+        }
+    }
+
+    return { scripts, config };
 }
 
 export function checkExistingFiles(

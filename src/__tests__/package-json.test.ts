@@ -15,7 +15,7 @@ describe("updatePackageJson", () => {
         rmSync(tempDir, { recursive: true, force: true });
     });
 
-    test("adds prepare script and lint-staged config", () => {
+    test("adds scripts and config from mods", () => {
         writeFileSync(
             join(tempDir, "package.json"),
             JSON.stringify({
@@ -26,23 +26,30 @@ describe("updatePackageJson", () => {
 
         const result = updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
+            mods: {
+                scripts: {
+                    prepare: "husky",
+                    check: "biome check .",
+                },
+                config: {
+                    "lint-staged": { "*": "biome check" },
+                },
+            },
         });
 
-        expect(result.addedPrepare).toBe(true);
-        expect(result.addedLintStaged).toBe(true);
-        expect(result.addedCheck).toBe(false);
+        expect(result.added).toContain("prepare script");
+        expect(result.added).toContain("check script");
+        expect(result.added).toContain("lint-staged config");
 
         const pkg = JSON.parse(
             readFileSync(join(tempDir, "package.json"), "utf-8"),
         );
         expect(pkg.scripts.prepare).toBe("husky");
+        expect(pkg.scripts.check).toBe("biome check .");
         expect(pkg["lint-staged"]).toEqual({ "*": "biome check" });
     });
 
-    test("does not overwrite existing prepare script", () => {
+    test("does not overwrite existing scripts", () => {
         writeFileSync(
             join(tempDir, "package.json"),
             JSON.stringify({
@@ -55,12 +62,13 @@ describe("updatePackageJson", () => {
 
         const result = updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
+            mods: {
+                scripts: { prepare: "husky" },
+                config: {},
+            },
         });
 
-        expect(result.addedPrepare).toBe(false);
+        expect(result.added).not.toContain("prepare script");
 
         const pkg = JSON.parse(
             readFileSync(join(tempDir, "package.json"), "utf-8"),
@@ -68,7 +76,7 @@ describe("updatePackageJson", () => {
         expect(pkg.scripts.prepare).toBe("custom-script");
     });
 
-    test("does not overwrite existing lint-staged config", () => {
+    test("does not overwrite existing config", () => {
         writeFileSync(
             join(tempDir, "package.json"),
             JSON.stringify({
@@ -80,12 +88,13 @@ describe("updatePackageJson", () => {
 
         const result = updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
+            mods: {
+                scripts: {},
+                config: { "lint-staged": { "*": "biome check" } },
+            },
         });
 
-        expect(result.addedLintStaged).toBe(false);
+        expect(result.added).not.toContain("lint-staged config");
 
         const pkg = JSON.parse(
             readFileSync(join(tempDir, "package.json"), "utf-8"),
@@ -103,9 +112,10 @@ describe("updatePackageJson", () => {
 
         updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
+            mods: {
+                scripts: { prepare: "husky" },
+                config: {},
+            },
         });
 
         const pkg = JSON.parse(
@@ -127,9 +137,10 @@ describe("updatePackageJson", () => {
 
         updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
+            mods: {
+                scripts: { prepare: "husky" },
+                config: {},
+            },
         });
 
         const pkg = JSON.parse(
@@ -141,101 +152,24 @@ describe("updatePackageJson", () => {
         expect(pkg.scripts.build).toBe("vite build");
     });
 
-    test("adds check script for Next.js with biome", () => {
+    test("returns empty array when nothing added", () => {
         writeFileSync(
             join(tempDir, "package.json"),
             JSON.stringify({
                 name: "test",
-                scripts: {},
+                scripts: { check: "existing" },
+                "lint-staged": { "*": "existing" },
             }),
         );
 
         const result = updatePackageJson({
             cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "nextjs",
-            tooling: "biome",
+            mods: {
+                scripts: { check: "biome check ." },
+                config: { "lint-staged": { "*": "biome check" } },
+            },
         });
 
-        expect(result.addedCheck).toBe(true);
-
-        const pkg = JSON.parse(
-            readFileSync(join(tempDir, "package.json"), "utf-8"),
-        );
-        expect(pkg.scripts.check).toBe("biome check .");
-    });
-
-    test("adds check script for Next.js with eslint-prettier", () => {
-        writeFileSync(
-            join(tempDir, "package.json"),
-            JSON.stringify({
-                name: "test",
-                scripts: {},
-            }),
-        );
-
-        const result = updatePackageJson({
-            cwd: tempDir,
-            lintStagedConfig: { "*.js": "eslint" },
-            framework: "nextjs",
-            tooling: "eslint-prettier",
-        });
-
-        expect(result.addedCheck).toBe(true);
-
-        const pkg = JSON.parse(
-            readFileSync(join(tempDir, "package.json"), "utf-8"),
-        );
-        expect(pkg.scripts.check).toBe("eslint . && prettier --check .");
-    });
-
-    test("does not add check script for non-Next.js frameworks", () => {
-        writeFileSync(
-            join(tempDir, "package.json"),
-            JSON.stringify({
-                name: "test",
-                scripts: {},
-            }),
-        );
-
-        const result = updatePackageJson({
-            cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "vite-tanstack-router",
-            tooling: "biome",
-        });
-
-        expect(result.addedCheck).toBe(false);
-
-        const pkg = JSON.parse(
-            readFileSync(join(tempDir, "package.json"), "utf-8"),
-        );
-        expect(pkg.scripts.check).toBeUndefined();
-    });
-
-    test("does not overwrite existing check script", () => {
-        writeFileSync(
-            join(tempDir, "package.json"),
-            JSON.stringify({
-                name: "test",
-                scripts: {
-                    check: "custom-check",
-                },
-            }),
-        );
-
-        const result = updatePackageJson({
-            cwd: tempDir,
-            lintStagedConfig: { "*": "biome check" },
-            framework: "nextjs",
-            tooling: "biome",
-        });
-
-        expect(result.addedCheck).toBe(false);
-
-        const pkg = JSON.parse(
-            readFileSync(join(tempDir, "package.json"), "utf-8"),
-        );
-        expect(pkg.scripts.check).toBe("custom-check");
+        expect(result.added).toEqual([]);
     });
 });

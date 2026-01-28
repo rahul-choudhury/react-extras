@@ -10,14 +10,13 @@ import { join } from "node:path";
 import * as p from "@clack/prompts";
 import { detectFramework, getFrameworkLabel } from "./detect-framework.js";
 import { detectPackageManager, getInstallCommand } from "./detect-pm.js";
-import {
-    detectTooling,
-    getLintStagedConfig,
-    getToolingLabel,
-} from "./detect-tooling.js";
+import { detectTooling, getToolingLabel } from "./detect-tooling.js";
 import {
     checkExistingFiles,
     copyTemplateFile,
+    type GeneratorContext,
+    getPackageJsonMods,
+    getRequiredDependencies,
     getTemplateFiles,
 } from "./files.js";
 import { ensureStandaloneOutput } from "./next-config.js";
@@ -26,7 +25,7 @@ import { updatePackageJson } from "./package-json.js";
 async function main() {
     const cwd = process.cwd();
 
-    p.intro("create-react-app-extras");
+    p.intro("react-extras");
 
     if (!existsSync(join(cwd, "package.json"))) {
         p.cancel(
@@ -92,7 +91,7 @@ async function main() {
     const templateFiles = allTemplateFiles.filter((f) =>
         selectedPaths.includes(f.targetPath),
     );
-    const huskySelected = selectedPaths.includes(".husky/pre-commit");
+    const requiredDeps = getRequiredDependencies(templateFiles);
     const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
@@ -108,10 +107,11 @@ async function main() {
         );
     }
 
-    if (huskySelected) {
+    if (requiredDeps.length > 0) {
         p.log.message("Dependencies to install:");
-        p.log.message("  husky");
-        p.log.message("  lint-staged");
+        for (const dep of requiredDeps) {
+            p.log.message(`  ${dep}`);
+        }
     }
 
     let filesToSkip: string[] = [];
@@ -154,20 +154,25 @@ async function main() {
         s.start("Configuring Next.js for standalone output...");
         const result = ensureStandaloneOutput(cwd);
 
-        if (result.status === "created") {
-            s.stop("Created next.config.ts with standalone output");
-        } else if (result.status === "updated") {
-            s.stop("Updated next.config with standalone output");
-        } else if (result.status === "already-configured") {
-            s.stop("Next.js already configured for standalone output");
-        } else {
-            nextConfigManualRequired = true;
-            s.stop("! Could not update next.config automatically");
-            p.log.error(
-                `Action required: ${result.message}\n` +
-                    `   File: ${result.path}\n` +
-                    `   Without this, Docker deployment will fail.`,
-            );
+        switch (result.status) {
+            case "created":
+                s.stop("Created next.config.ts with standalone output");
+                break;
+            case "updated":
+                s.stop("Updated next.config with standalone output");
+                break;
+            case "already-configured":
+                s.stop("Next.js already configured for standalone output");
+                break;
+            case "manual-required":
+                nextConfigManualRequired = true;
+                s.stop("! Could not update next.config automatically");
+                p.log.error(
+                    `Action required: ${result.message}\n` +
+                        `   File: ${result.path}\n` +
+                        `   Without this, Docker deployment will fail.`,
+                );
+                break;
         }
     }
 
@@ -181,29 +186,21 @@ async function main() {
 
     s.stop("Template files copied");
 
+    const ctx: GeneratorContext = { cwd, pm, tooling, framework };
+    const mods = getPackageJsonMods(templateFiles, ctx);
+
     s.start("Updating package.json...");
-    const lintStagedConfig = getLintStagedConfig(tooling);
-    const { addedPrepare, addedLintStaged, addedCheck } = updatePackageJson({
-        cwd,
-        lintStagedConfig,
-        framework,
-        tooling,
-    });
+    const { added } = updatePackageJson({ cwd, mods });
 
-    const updates: string[] = [];
-    if (addedPrepare) updates.push("prepare script");
-    if (addedLintStaged) updates.push("lint-staged config");
-    if (addedCheck) updates.push("check script");
-
-    if (updates.length > 0) {
-        s.stop(`Updated package.json: added ${updates.join(", ")}`);
+    if (added.length > 0) {
+        s.stop(`Updated package.json: added ${added.join(", ")}`);
     } else {
         s.stop("package.json already configured");
     }
 
-    if (huskySelected) {
-        s.start("Installing husky and lint-staged...");
-        const installCmd = getInstallCommand(pm, ["husky", "lint-staged"]);
+    if (requiredDeps.length > 0) {
+        s.start(`Installing ${requiredDeps.join(", ")}...`);
+        const installCmd = getInstallCommand(pm, requiredDeps);
 
         try {
             await execAsync(installCmd, { cwd });
