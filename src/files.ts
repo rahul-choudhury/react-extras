@@ -40,9 +40,12 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         },
     },
     {
-    	targetPath: ".husky/pre-commit",
-    	label: "Husky pre-commit hook",
-    	content: { type: "dynamic", generate: (ctx) => generatePreCommitHook(ctx.pm) },
+        targetPath: ".husky/pre-commit",
+        label: "Husky pre-commit hook",
+        content: {
+            type: "dynamic",
+            generate: (ctx) => generatePreCommitHook(ctx.pm),
+        },
     },
     {
         targetPath: ".vscode/extensions.json",
@@ -66,7 +69,7 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         },
     },
     {
-        targetPath: "src/lib/api-client.ts",
+        targetPath: "lib/api-client.ts",
         label: "API client",
         content: { type: "static", templatePath: "lib/api-client.ts" },
     },
@@ -80,9 +83,9 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
 
 export function getTemplateFiles(framework: Framework): TemplateFile[] {
     const ctx: GeneratorContext = {
-    	pm: "npm",
-    	tooling: "eslint-prettier",
-    	framework,
+        pm: "npm",
+        tooling: "eslint-prettier",
+        framework,
     };
 
     return TEMPLATE_DEFINITIONS.filter((def) => !def.when || def.when(ctx)).map(
@@ -296,8 +299,8 @@ CMD ["node", "server.js"]
 }
 
 function generatePreCommitHook(pm: PackageManager): string {
-	const config = getPMConfig(pm);
-	return `${config.runX} lint-staged\n`;
+    const config = getPMConfig(pm);
+    return `${config.runX} lint-staged\n`;
 }
 
 function generateExtensionsJson(tooling: Tooling): string {
