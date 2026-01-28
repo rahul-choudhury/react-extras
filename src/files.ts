@@ -142,14 +142,19 @@ export function copyTemplateFile(
         mkdirSync(targetDir, { recursive: true });
     }
 
-    const def = TEMPLATE_DEFINITIONS.find(
-        (d) => d.targetPath === templateFile.targetPath,
-    );
+    const ctx: GeneratorContext = { cwd, pm, tooling, framework };
+    const def = TEMPLATE_DEFINITIONS.find((d) => {
+        const resolvedPath =
+            typeof d.targetPath === "function"
+                ? d.targetPath(ctx)
+                : d.targetPath;
+        return resolvedPath === templateFile.targetPath;
+    });
     if (!def) {
         throw new Error(`Unknown template: ${templateFile.targetPath}`);
     }
 
-    const content = resolveContent(def.content, { cwd, pm, tooling, framework });
+    const content = resolveContent(def.content, ctx);
     writeFileSync(targetPath, content);
 }
 

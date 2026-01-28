@@ -65,7 +65,34 @@ async function main() {
         p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
     }
 
-    const templateFiles = getTemplateFiles(cwd, framework);
+    const allTemplateFiles = getTemplateFiles(cwd, framework);
+
+    const selectedExtras = await p.multiselect({
+        message: "Select extras to add:",
+        options: allTemplateFiles.map((file) => ({
+            value: file.targetPath,
+            label: file.label,
+            hint: file.targetPath,
+        })),
+        initialValues: allTemplateFiles.map((f) => f.targetPath),
+        required: false,
+    });
+
+    if (p.isCancel(selectedExtras)) {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+    }
+
+    const selectedPaths = selectedExtras as string[];
+    if (selectedPaths.length === 0) {
+        p.cancel("No extras selected.");
+        process.exit(0);
+    }
+
+    const templateFiles = allTemplateFiles.filter((f) =>
+        selectedPaths.includes(f.targetPath),
+    );
+    const huskySelected = selectedPaths.includes(".husky/pre-commit");
     const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
@@ -81,9 +108,11 @@ async function main() {
         );
     }
 
-    p.log.message("Dependencies to install:");
-    p.log.message("  husky");
-    p.log.message("  lint-staged");
+    if (huskySelected) {
+        p.log.message("Dependencies to install:");
+        p.log.message("  husky");
+        p.log.message("  lint-staged");
+    }
 
     let filesToSkip: string[] = [];
     if (existingFiles.length > 0) {
@@ -172,15 +201,17 @@ async function main() {
         s.stop("package.json already configured");
     }
 
-    s.start("Installing husky and lint-staged...");
-    const installCmd = getInstallCommand(pm, ["husky", "lint-staged"]);
+    if (huskySelected) {
+        s.start("Installing husky and lint-staged...");
+        const installCmd = getInstallCommand(pm, ["husky", "lint-staged"]);
 
-    try {
-        await execAsync(installCmd, { cwd });
-        s.stop("Dependencies installed");
-    } catch {
-        s.stop("Failed to install dependencies");
-        p.log.warn(`Run manually: ${installCmd}`);
+        try {
+            await execAsync(installCmd, { cwd });
+            s.stop("Dependencies installed");
+        } catch {
+            s.stop("Failed to install dependencies");
+            p.log.warn(`Run manually: ${installCmd}`);
+        }
     }
 
     if (nextConfigManualRequired) {
