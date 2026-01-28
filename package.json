@@ -30,7 +30,8 @@
     "dev": "bun --watch ./src/index.ts",
     "lint": "biome lint ./src",
     "format": "biome format --write ./src",
-    "check": "biome check --write ./src"
+    "check": "biome check --write ./src",
+    "typecheck": "bunx tsc --noEmit"
   },
   "dependencies": {
     "@clack/prompts": "^0.10.0"
