@@ -8,7 +8,7 @@ if [[ ! "$VERSION_TYPE" =~ ^(patch|minor|major)$ ]]; then
   exit 1
 fi
 
-bun run build && bun test
+bun run typecheck && bun run build && bun test
 
 NEW_VERSION=$(npm version "$VERSION_TYPE" --no-git-tag-version)
 git add package.json
