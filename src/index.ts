@@ -91,7 +91,6 @@ async function main() {
     const templateFiles = allTemplateFiles.filter((f) =>
         selectedPaths.includes(f.targetPath),
     );
-    const requiredDeps = getRequiredDependencies(templateFiles);
     const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
@@ -105,13 +104,6 @@ async function main() {
         p.log.message(
             "  next.config.ts (will be updated for standalone output)",
         );
-    }
-
-    if (requiredDeps.length > 0) {
-        p.log.message("Dependencies to install:");
-        for (const dep of requiredDeps) {
-            p.log.message(`  ${dep}`);
-        }
     }
 
     let filesToSkip: string[] = [];
@@ -135,6 +127,18 @@ async function main() {
         filesToSkip = existingFiles
             .filter(({ file }) => !filesToOverwrite.includes(file.targetPath))
             .map(({ file }) => file.targetPath);
+    }
+
+    const templateFilesToApply = templateFiles.filter(
+        (f) => !filesToSkip.includes(f.targetPath),
+    );
+    const requiredDeps = getRequiredDependencies(templateFilesToApply);
+
+    if (requiredDeps.length > 0) {
+        p.log.message("Dependencies to install:");
+        for (const dep of requiredDeps) {
+            p.log.message(`  ${dep}`);
+        }
     }
 
     const shouldContinue = await p.confirm({
@@ -187,7 +191,7 @@ async function main() {
     s.stop("Template files copied");
 
     const ctx: GeneratorContext = { cwd, pm, tooling, framework };
-    const mods = getPackageJsonMods(templateFiles, ctx);
+    const mods = getPackageJsonMods(templateFilesToApply, ctx);
 
     s.start("Updating package.json...");
     const { added } = updatePackageJson({ cwd, mods });
