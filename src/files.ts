@@ -149,7 +149,7 @@ export function copyTemplateFile(
         throw new Error(`Unknown template: ${templateFile.targetPath}`);
     }
 
-    const content = resolveContent(def.content, { pm, tooling, framework });
+    const content = resolveContent(def.content, { cwd, pm, tooling, framework });
     writeFileSync(targetPath, content);
 }
 
