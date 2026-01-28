@@ -39,6 +39,7 @@ The CLI will:
 | `.husky/pre-commit` | Pre-commit hook for linting |
 | `.vscode/extensions.json` | Recommended VS Code extensions |
 | `.editorconfig` | Editor configuration for consistent formatting |
+| `lib/api-client.ts` | Type-safe API client (placed in `src/lib` if `src` directory exists) |
 | `nginx.conf` | Nginx configuration (Vite projects only) |
 
 The CLI also updates your `package.json` with:
