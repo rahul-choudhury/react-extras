@@ -8,6 +8,7 @@ const execAsync = promisify(exec);
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import * as p from "@clack/prompts";
+import pc from "picocolors";
 import { detectFramework, getFrameworkLabel } from "./detect-framework.js";
 import { detectPackageManager, getInstallCommand } from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
@@ -41,7 +42,7 @@ async function main() {
             `No lock file found, assuming package manager: ${pm} (run "${pm} install" first if this is wrong)`,
         );
     } else {
-        p.log.info(`Detected package manager: ${pm}`);
+        p.log.info(`Detected package manager: ${pc.cyan(pm)}`);
     }
 
     const frameworkResult = detectFramework(cwd);
@@ -51,7 +52,9 @@ async function main() {
             `Could not detect framework, assuming: ${getFrameworkLabel(framework)} (Dockerfile and workflows may need adjustment)`,
         );
     } else {
-        p.log.info(`Detected framework: ${getFrameworkLabel(framework)}`);
+        p.log.info(
+            `Detected framework: ${pc.cyan(getFrameworkLabel(framework))}`,
+        );
     }
 
     const toolingResult = detectTooling(cwd);
@@ -61,7 +64,7 @@ async function main() {
             `No linter config found, assuming: ${getToolingLabel(tooling)} (lint-staged config may need adjustment)`,
         );
     } else {
-        p.log.info(`Detected tooling: ${getToolingLabel(tooling)}`);
+        p.log.info(`Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`);
     }
 
     const allTemplateFiles = getTemplateFiles(cwd, framework);
@@ -94,9 +97,9 @@ async function main() {
     const fileStatus = checkExistingFiles(cwd, templateFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
-    p.log.message("Files to create:");
+    p.log.message(pc.dim("Files to create:"));
     for (const { file, exists } of fileStatus) {
-        const status = exists ? " (exists, will overwrite)" : "";
+        const status = exists ? pc.yellow(" (exists, will overwrite)") : "";
         p.log.message(`  ${file.targetPath}${status}`);
     }
 
@@ -135,9 +138,9 @@ async function main() {
     const requiredDeps = getRequiredDependencies(templateFilesToApply);
 
     if (requiredDeps.length > 0) {
-        p.log.message("Dependencies to install:");
+        p.log.message(pc.dim("Dependencies to install:"));
         for (const dep of requiredDeps) {
-            p.log.message(`  ${dep}`);
+            p.log.message(`  ${pc.cyan(dep)}`);
         }
     }
 
@@ -221,22 +224,17 @@ async function main() {
         p.outro("Setup complete!");
     }
 
-    p.log.message("Next steps:");
     if (nextConfigManualRequired) {
-        p.log.message(
-            '  1. ! Add output: "standalone" to your next.config (required for Docker)',
-        );
-        p.log.message("  2. Review the created files");
-        p.log.message(
-            "  3. Update .github/workflows/deploy.yml with your settings",
-        );
-        p.log.message("  4. Make a commit to test the pre-commit hook");
+        p.log.message(`${pc.dim("Next steps:")}
+  ${pc.yellow("1.")} Add output: "standalone" to your next.config ${pc.dim("(required for Docker)")}
+  ${pc.dim("2.")} Review the created files
+  ${pc.dim("3.")} Update .github/workflows/deploy.yml with your settings
+  ${pc.dim("4.")} Make a commit to test the pre-commit hook`);
     } else {
-        p.log.message("  1. Review the created files");
-        p.log.message(
-            "  2. Update .github/workflows/deploy.yml with your settings",
-        );
-        p.log.message("  3. Make a commit to test the pre-commit hook");
+        p.log.message(`${pc.dim("Next steps:")}
+  ${pc.dim("1.")} Review the created files
+  ${pc.dim("2.")} Update .github/workflows/deploy.yml with your settings
+  ${pc.dim("3.")} Make a commit to test the pre-commit hook`);
     }
 }
 
