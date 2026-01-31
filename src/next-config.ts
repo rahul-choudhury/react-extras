@@ -51,23 +51,23 @@ export function ensureStandaloneOutput(cwd: string): NextConfigResult {
 
     // Pattern 1: const x: NextConfig = { ... }
     let updated = content.replace(
-        /(const\s+\w+:\s*NextConfig\s*=\s*\{)/,
-        '$1\n    output: "standalone",',
+        /(const\s+\w+:\s*NextConfig\s*=\s*\{[^}]*)(}\s*;?\s*\n?\s*export\s+default)/,
+        '$1    output: "standalone",\n$2',
     );
 
     // Pattern 2: module.exports = { ... } (for .js files)
     if (updated === content) {
         updated = content.replace(
-            /(module\.exports\s*=\s*\{)/,
-            '$1\n    output: "standalone",',
+            /(module\.exports\s*=\s*\{[^}]*)(}\s*;?\s*$)/m,
+            '$1    output: "standalone",\n$2',
         );
     }
 
     // Pattern 3: export default { ... }
     if (updated === content) {
         updated = content.replace(
-            /(export\s+default\s*\{)/,
-            '$1\n    output: "standalone",',
+            /(export\s+default\s*\{[^}]*)(}\s*;?\s*$)/m,
+            '$1    output: "standalone",\n$2',
         );
     }
 
