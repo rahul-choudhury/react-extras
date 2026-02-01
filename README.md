@@ -1,6 +1,6 @@
 # react-extras
 
-A CLI tool that automates the setup of deployment, linting, and editor configuration for React applications.
+A CLI tool that automates the setup of deployment, linting, and editor configuration for Next.js and Vite + TanStack Router React applications.
 
 ## Installation
 
@@ -57,4 +57,4 @@ The CLI also updates your `package.json` with:
 ## Supported Frameworks
 
 - Next.js (automatically configures standalone output)
-- Vite + TanStack Router
+- Vite + TanStack Router ([Quick Start](https://tanstack.com/router/v1/docs/framework/react/quick-start))
