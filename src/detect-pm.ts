@@ -52,12 +52,23 @@ export interface PMConfig {
     frozenInstall: string;
 }
 
+export interface PMConfigOptions {
+    cwd?: string;
+}
+
 function getNodeMajorVersion(): string {
     return process.version.split(".")[0].replace("v", "");
 }
 
-export function getPMConfig(pm: PackageManager): PMConfig {
+export function getPMConfig(
+    pm: PackageManager,
+    options: PMConfigOptions = {},
+): PMConfig {
     const nodeVersion = getNodeMajorVersion();
+    const cwd = options.cwd ?? process.cwd();
+    const bunLockfile = existsSync(join(cwd, "bun.lockb"))
+        ? "bun.lockb"
+        : "bun.lock";
 
     switch (pm) {
         case "bun":
@@ -66,7 +77,7 @@ export function getPMConfig(pm: PackageManager): PMConfig {
                 install: "bun install",
                 run: "bun run",
                 runX: "bun run",
-                lockfile: "bun.lock",
+                lockfile: bunLockfile,
                 dockerBase: "oven/bun:alpine",
                 frozenInstall: "bun install --frozen-lockfile",
             };

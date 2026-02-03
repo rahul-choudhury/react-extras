@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { detectPackageManager } from "../detect-pm.js";
+import { detectPackageManager, getPMConfig } from "../detect-pm.js";
 
 describe("detectPackageManager", () => {
     let tempDir: string;
@@ -61,5 +61,29 @@ describe("detectPackageManager", () => {
         writeFileSync(join(tempDir, "package-lock.json"), "{}");
         const result = detectPackageManager(tempDir);
         expect(result.pm).toBe("bun");
+    });
+});
+
+describe("getPMConfig", () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        tempDir = mkdtempSync(join(tmpdir(), "pm-config-test-"));
+    });
+
+    afterEach(() => {
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("uses bun.lockb when it exists", () => {
+        writeFileSync(join(tempDir, "bun.lockb"), "");
+        const config = getPMConfig("bun", { cwd: tempDir });
+        expect(config.lockfile).toBe("bun.lockb");
+    });
+
+    test("falls back to bun.lock when bun.lockb is missing", () => {
+        writeFileSync(join(tempDir, "bun.lock"), "");
+        const config = getPMConfig("bun", { cwd: tempDir });
+        expect(config.lockfile).toBe("bun.lock");
     });
 });

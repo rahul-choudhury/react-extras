@@ -58,7 +58,7 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         label: "GitHub Actions workflow",
         content: {
             type: "dynamic",
-            generate: (ctx) => generateDeployYml(ctx.pm),
+            generate: (ctx) => generateDeployYml(ctx.pm, ctx.cwd),
         },
         packageJson: (ctx) => ({
             scripts: {
@@ -72,7 +72,7 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         label: "Husky pre-commit hook",
         content: {
             type: "dynamic",
-            generate: (ctx) => generatePreCommitHook(ctx.pm),
+            generate: (ctx) => generatePreCommitHook(ctx.pm, ctx.cwd),
         },
         devDependencies: ["husky", "lint-staged"],
         packageJson: (ctx) => ({
@@ -107,7 +107,8 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         label: "Dockerfile",
         content: {
             type: "dynamic",
-            generate: (ctx) => generateDockerfile(ctx.pm, ctx.framework),
+            generate: (ctx) =>
+                generateDockerfile(ctx.pm, ctx.framework, ctx.cwd),
         },
     },
     {
@@ -267,8 +268,8 @@ function resolveContent(
     return readFileSync(join(templatesDir, resolver.templatePath), "utf-8");
 }
 
-function generateDeployYml(pm: PackageManager): string {
-    const config = getPMConfig(pm);
+function generateDeployYml(pm: PackageManager, cwd: string): string {
+    const config = getPMConfig(pm, { cwd });
     return `name: Deploy
 on:
   push:
@@ -316,15 +317,19 @@ jobs:
 `;
 }
 
-function generateDockerfile(pm: PackageManager, framework: Framework): string {
+function generateDockerfile(
+    pm: PackageManager,
+    framework: Framework,
+    cwd: string,
+): string {
     if (framework === "nextjs") {
-        return generateNextjsDockerfile(pm);
+        return generateNextjsDockerfile(pm, cwd);
     }
-    return generateViteDockerfile(pm);
+    return generateViteDockerfile(pm, cwd);
 }
 
-function generateViteDockerfile(pm: PackageManager): string {
-    const config = getPMConfig(pm);
+function generateViteDockerfile(pm: PackageManager, cwd: string): string {
+    const config = getPMConfig(pm, { cwd });
     return `FROM ${config.dockerBase} AS base
 
 FROM base AS deps
@@ -348,8 +353,8 @@ CMD ["nginx", "-g", "daemon off;"]
 `;
 }
 
-function generateNextjsDockerfile(pm: PackageManager): string {
-    const config = getPMConfig(pm);
+function generateNextjsDockerfile(pm: PackageManager, cwd: string): string {
+    const config = getPMConfig(pm, { cwd });
 
     let depsSetup: string;
     let depsCopy: string;
@@ -415,8 +420,8 @@ CMD ["node", "server.js"]
 `;
 }
 
-function generatePreCommitHook(pm: PackageManager): string {
-    const config = getPMConfig(pm);
+function generatePreCommitHook(pm: PackageManager, cwd: string): string {
+    const config = getPMConfig(pm, { cwd });
     return `${config.runX} lint-staged\n`;
 }
 
