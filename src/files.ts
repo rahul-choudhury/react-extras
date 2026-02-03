@@ -89,6 +89,15 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         },
     },
     {
+        targetPath: ".zed/settings.json",
+        label: "Zed settings",
+        content: {
+            type: "dynamic",
+            generate: () => generateZedSettingsJson(),
+        },
+        when: (ctx) => ctx.tooling === "biome",
+    },
+    {
         targetPath: ".editorconfig",
         label: "EditorConfig",
         content: { type: "static", templatePath: "editorconfig" },
@@ -120,11 +129,12 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
 export function getTemplateFiles(
     cwd: string,
     framework: Framework,
+    tooling: Tooling = "eslint-prettier",
 ): TemplateFile[] {
     const ctx: GeneratorContext = {
         cwd,
         pm: "npm",
-        tooling: "eslint-prettier",
+        tooling,
         framework,
     };
 
@@ -426,4 +436,63 @@ function generateExtensionsJson(tooling: Tooling): string {
               ];
 
     return `${JSON.stringify({ recommendations: extensions }, null, 2)}\n`;
+}
+
+function generateZedSettingsJson(): string {
+    const settings = {
+        languages: {
+            JavaScript: {
+                language_servers: ["biome", "vtsls"],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                    "source.organizeImports.biome": true,
+                },
+            },
+            TypeScript: {
+                language_servers: ["biome", "vtsls"],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                    "source.organizeImports.biome": true,
+                },
+            },
+            TSX: {
+                language_servers: [
+                    "biome",
+                    "vtsls",
+                    "tailwindcss-language-server",
+                ],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                    "source.organizeImports.biome": true,
+                },
+            },
+            JSON: {
+                language_servers: ["biome", "json-language-server"],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                    "source.organizeImports.biome": true,
+                },
+            },
+            JSONC: {
+                language_servers: ["biome", "json-language-server"],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                    "source.organizeImports.biome": true,
+                },
+            },
+            CSS: {
+                language_servers: ["biome", "vscode-css-language-server"],
+                formatter: { language_server: { name: "biome" } },
+                code_actions_on_format: {
+                    "source.fixAll.biome": true,
+                },
+            },
+        },
+    };
+    return `${JSON.stringify(settings, null, 2)}\n`;
 }

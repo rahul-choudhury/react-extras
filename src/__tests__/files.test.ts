@@ -32,6 +32,20 @@ describe("getTemplateFiles", () => {
         expect(labels).not.toContain("Nginx config");
     });
 
+    test("includes zed settings when using biome", () => {
+        const files = getTemplateFiles(tempDir, "nextjs", "biome");
+        const labels = files.map((f) => f.label);
+
+        expect(labels).toContain("Zed settings");
+    });
+
+    test("excludes zed settings when not using biome", () => {
+        const files = getTemplateFiles(tempDir, "nextjs", "eslint-prettier");
+        const labels = files.map((f) => f.label);
+
+        expect(labels).not.toContain("Zed settings");
+    });
+
     test("includes nginx config for vite-tanstack-router framework", () => {
         const files = getTemplateFiles(tempDir, "vite-tanstack-router");
         const labels = files.map((f) => f.label);

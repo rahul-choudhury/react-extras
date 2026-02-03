@@ -67,7 +67,7 @@ async function main() {
         p.log.info(`Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`);
     }
 
-    const allTemplateFiles = getTemplateFiles(cwd, framework);
+    const allTemplateFiles = getTemplateFiles(cwd, framework, tooling);
 
     const selectedExtras = await p.multiselect({
         message: "Select extras to add:",
