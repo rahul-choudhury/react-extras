@@ -28,13 +28,15 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        globalThis.fetch = async (request: Request) => {
+        const mockFetch = (async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        };
+        }) as typeof fetch;
+        mockFetch.preconnect = () => {};
+        globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
         await client.get("/hello");
@@ -48,21 +50,21 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        globalThis.fetch = async (request: Request) => {
+        const mockFetch = (async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        };
+        }) as typeof fetch;
+        mockFetch.preconnect = () => {};
+        globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
         await client.post("/hello", { ok: true });
 
         expect(captured).toBeDefined();
-        expect(captured?.headers.get("Content-Type")).toBe(
-            "application/json",
-        );
+        expect(captured?.headers.get("Content-Type")).toBe("application/json");
         rmSync(tempDir, { recursive: true, force: true });
     });
 });
