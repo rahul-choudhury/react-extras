@@ -40,6 +40,13 @@ describe("detectFramework", () => {
         expect(result.inferred).toBe(false);
     });
 
+    test("detects Next.js from next.config.cjs", () => {
+        writeFileSync(join(tempDir, "next.config.cjs"), "module.exports = {}");
+        const result = detectFramework(tempDir);
+        expect(result.framework).toBe("nextjs");
+        expect(result.inferred).toBe(false);
+    });
+
     test("detects Next.js from package.json dependency", () => {
         writeFileSync(
             join(tempDir, "package.json"),
@@ -144,6 +151,13 @@ describe("getNextConfigPath", () => {
         writeFileSync(join(tempDir, "next.config.js"), "");
         expect(getNextConfigPath(tempDir)).toBe(
             join(tempDir, "next.config.js"),
+        );
+    });
+
+    test("returns path for next.config.cjs", () => {
+        writeFileSync(join(tempDir, "next.config.cjs"), "");
+        expect(getNextConfigPath(tempDir)).toBe(
+            join(tempDir, "next.config.cjs"),
         );
     });
 

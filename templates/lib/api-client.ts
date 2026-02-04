@@ -73,13 +73,19 @@ export function createApiClient(config: ApiClientConfig) {
 
         const isFormData = body instanceof FormData;
 
+        const resolvedHeaders: HeadersInit = {
+            ...defaultHeaders,
+            ...headers,
+        };
+        if (!isFormData && body !== undefined) {
+            if (!new Headers(resolvedHeaders).has("Content-Type")) {
+                resolvedHeaders["Content-Type"] = "application/json";
+            }
+        }
+
         let request = new Request(url, {
             ...init,
-            headers: {
-                ...(isFormData ? {} : { "Content-Type": "application/json" }),
-                ...defaultHeaders,
-                ...headers,
-            },
+            headers: resolvedHeaders,
             body: isFormData
                 ? body
                 : body !== undefined

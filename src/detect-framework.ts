@@ -11,6 +11,7 @@ export interface FrameworkDetectionResult {
 const NEXTJS_CONFIG_FILES = [
     "next.config.ts",
     "next.config.js",
+    "next.config.cjs",
     "next.config.mjs",
 ];
 
