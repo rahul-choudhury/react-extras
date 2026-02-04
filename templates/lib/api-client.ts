@@ -1,3 +1,5 @@
+import { apiBaseUrl } from "./config";
+
 type RequestOptions = Omit<RequestInit, "body"> & {
     params?: Record<string, string | number | boolean | undefined>;
     body?: unknown;
@@ -146,5 +148,5 @@ export function createApiClient(config: ApiClientConfig) {
 }
 
 export const api = createApiClient({
-    baseUrl: typeof window !== "undefined" ? window.location.origin : "",
+    baseUrl: apiBaseUrl,
 });

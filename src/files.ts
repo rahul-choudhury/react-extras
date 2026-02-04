@@ -120,6 +120,17 @@ const TEMPLATE_DEFINITIONS: TemplateDefinition[] = [
         content: { type: "static", templatePath: "lib/api-client.ts" },
     },
     {
+        targetPath: (ctx) =>
+            existsSync(join(ctx.cwd, "src"))
+                ? "src/lib/config.ts"
+                : "lib/config.ts",
+        label: "API config",
+        content: {
+            type: "dynamic",
+            generate: (ctx) => generateConfigTs(ctx.framework),
+        },
+    },
+    {
         targetPath: "nginx.conf",
         label: "Nginx config",
         content: { type: "static", templatePath: "nginx.conf" },
@@ -500,4 +511,16 @@ function generateZedSettingsJson(): string {
         },
     };
     return `${JSON.stringify(settings, null, 2)}\n`;
+}
+
+function generateConfigTs(framework: Framework): string {
+    if (framework === "nextjs") {
+        return `export const apiBaseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+`;
+    }
+
+    return `export const apiBaseUrl =
+    import.meta.env.VITE_API_BASE_URL ?? "";
+`;
 }

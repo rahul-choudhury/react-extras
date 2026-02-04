@@ -68,6 +68,21 @@ describe("getTemplateFiles", () => {
         expect(apiClient?.targetPath).toBe("src/lib/api-client.ts");
     });
 
+    test("includes api config next to api client", () => {
+        const files = getTemplateFiles(tempDir, "nextjs");
+        const apiConfig = files.find((f) => f.label === "API config");
+
+        expect(apiConfig?.targetPath).toBe("lib/config.ts");
+    });
+
+    test("uses src/lib/config.ts when src directory exists", () => {
+        mkdirSync(join(tempDir, "src"));
+        const files = getTemplateFiles(tempDir, "nextjs");
+        const apiConfig = files.find((f) => f.label === "API config");
+
+        expect(apiConfig?.targetPath).toBe("src/lib/config.ts");
+    });
+
     test("static templates have correct templatePath", () => {
         const files = getTemplateFiles(tempDir, "nextjs");
         const editorconfig = files.find((f) => f.label === "EditorConfig");
