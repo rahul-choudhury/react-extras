@@ -34,19 +34,26 @@ function loadApiClient(tempDir: string) {
     return import(pathToFileURL(join(tempDir, "api-client.ts")).toString());
 }
 
+type FetchHandler = (request: Request) => Promise<Response>;
+
+function createMockFetch(handler: FetchHandler) {
+    const mockFetch = handler as unknown as typeof fetch;
+    mockFetch.preconnect = () => {};
+    return mockFetch;
+}
+
 describe("createApiClient", () => {
     test("does not set Content-Type for GET without body", async () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        const mockFetch = (async (request: Request) => {
+        const mockFetch = createMockFetch(async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
@@ -61,14 +68,13 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        const mockFetch = (async (request: Request) => {
+        const mockFetch = createMockFetch(async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
@@ -83,14 +89,13 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        const mockFetch = (async (request: Request) => {
+        const mockFetch = createMockFetch(async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         const client = createApiClient({
@@ -110,14 +115,13 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        const mockFetch = (async (request: Request) => {
+        const mockFetch = createMockFetch(async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         globalAny.window = { location: { origin: "https://example.com" } };
@@ -131,13 +135,12 @@ describe("createApiClient", () => {
     test("returns null for empty JSON response bodies", async () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
-        const mockFetch = (async () => {
+        const mockFetch = createMockFetch(async (_request: Request) => {
             return new Response(null, {
                 status: 204,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
@@ -150,13 +153,12 @@ describe("createApiClient", () => {
     test("returns null for empty JSON bodies with 200 status", async () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
-        const mockFetch = (async () => {
+        const mockFetch = createMockFetch(async (_request: Request) => {
             return new Response("", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         const client = createApiClient({ baseUrl: "https://example.com" });
@@ -170,14 +172,13 @@ describe("createApiClient", () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
         let captured: Request | undefined;
-        const mockFetch = (async (request: Request) => {
+        const mockFetch = createMockFetch(async (request: Request) => {
             captured = request;
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         if (globalAny.window) {
@@ -194,13 +195,12 @@ describe("createApiClient", () => {
     test("throws when baseUrl is empty and no window origin exists", async () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);
-        const mockFetch = (async () => {
+        const mockFetch = createMockFetch(async (_request: Request) => {
             return new Response("{}", {
                 status: 200,
                 headers: { "content-type": "application/json" },
             });
-        }) as typeof fetch;
-        mockFetch.preconnect = () => {};
+        });
         globalThis.fetch = mockFetch;
 
         if (globalAny.window) {
