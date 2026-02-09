@@ -29,7 +29,20 @@ function buildUrl(
     path: string,
     params?: Record<string, string | number | boolean | undefined>,
 ): string {
-    const url = new URL(path, baseUrl);
+    const trimmedBaseUrl = baseUrl.trim();
+    let url: URL;
+
+    if (trimmedBaseUrl) {
+        url = new URL(path, trimmedBaseUrl);
+    } else if (/^https?:\/\//i.test(path)) {
+        url = new URL(path);
+    } else if (typeof window !== "undefined" && window.location?.origin) {
+        url = new URL(path, window.location.origin);
+    } else {
+        throw new Error(
+            "createApiClient: baseUrl is required for relative paths",
+        );
+    }
 
     if (params) {
         for (const [key, value] of Object.entries(params)) {
@@ -45,8 +58,16 @@ function buildUrl(
 async function parseResponse(response: Response): Promise<unknown> {
     const contentType = response.headers.get("content-type");
 
+    if (response.status === 204 || response.status === 205 || response.status === 304) {
+        return null;
+    }
+
     if (contentType?.includes("application/json")) {
-        return response.json();
+        const text = await response.text();
+        if (!text) {
+            return null;
+        }
+        return JSON.parse(text);
     }
 
     if (contentType?.includes("text/")) {
@@ -54,6 +75,20 @@ async function parseResponse(response: Response): Promise<unknown> {
     }
 
     return response.blob();
+}
+
+function mergeHeaders(
+    defaultHeaders: HeadersInit,
+    headers?: HeadersInit,
+): Headers {
+    const resolved = new Headers(defaultHeaders);
+    if (headers) {
+        const extra = new Headers(headers);
+        extra.forEach((value, key) => {
+            resolved.set(key, value);
+        });
+    }
+    return resolved;
 }
 
 export function createApiClient(config: ApiClientConfig) {
@@ -75,13 +110,10 @@ export function createApiClient(config: ApiClientConfig) {
 
         const isFormData = body instanceof FormData;
 
-        const resolvedHeaders: HeadersInit = {
-            ...defaultHeaders,
-            ...headers,
-        };
+        const resolvedHeaders = mergeHeaders(defaultHeaders, headers);
         if (!isFormData && body !== undefined) {
-            if (!new Headers(resolvedHeaders).has("Content-Type")) {
-                resolvedHeaders["Content-Type"] = "application/json";
+            if (!resolvedHeaders.has("Content-Type")) {
+                resolvedHeaders.set("Content-Type", "application/json");
             }
         }
 
