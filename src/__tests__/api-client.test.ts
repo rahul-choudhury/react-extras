@@ -146,4 +146,71 @@ describe("createApiClient", () => {
         expect(data).toBeNull();
         rmSync(tempDir, { recursive: true, force: true });
     });
+
+    test("returns null for empty JSON bodies with 200 status", async () => {
+        const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
+        const { createApiClient } = await loadApiClient(tempDir);
+        const mockFetch = (async () => {
+            return new Response("", {
+                status: 200,
+                headers: { "content-type": "application/json" },
+            });
+        }) as typeof fetch;
+        mockFetch.preconnect = () => {};
+        globalThis.fetch = mockFetch;
+
+        const client = createApiClient({ baseUrl: "https://example.com" });
+        const data = await client.get("/hello");
+
+        expect(data).toBeNull();
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("supports absolute URLs when baseUrl is empty", async () => {
+        const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
+        const { createApiClient } = await loadApiClient(tempDir);
+        let captured: Request | undefined;
+        const mockFetch = (async (request: Request) => {
+            captured = request;
+            return new Response("{}", {
+                status: 200,
+                headers: { "content-type": "application/json" },
+            });
+        }) as typeof fetch;
+        mockFetch.preconnect = () => {};
+        globalThis.fetch = mockFetch;
+
+        if (globalAny.window) {
+            delete globalAny.window;
+        }
+
+        const client = createApiClient({ baseUrl: "" });
+        await client.get("https://example.com/hello");
+
+        expect(captured?.url).toBe("https://example.com/hello");
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("throws when baseUrl is empty and no window origin exists", async () => {
+        const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
+        const { createApiClient } = await loadApiClient(tempDir);
+        const mockFetch = (async () => {
+            return new Response("{}", {
+                status: 200,
+                headers: { "content-type": "application/json" },
+            });
+        }) as typeof fetch;
+        mockFetch.preconnect = () => {};
+        globalThis.fetch = mockFetch;
+
+        if (globalAny.window) {
+            delete globalAny.window;
+        }
+
+        const client = createApiClient({ baseUrl: "" });
+        await expect(client.get("/hello")).rejects.toThrow(
+            "createApiClient: baseUrl is required for relative paths",
+        );
+        rmSync(tempDir, { recursive: true, force: true });
+    });
 });

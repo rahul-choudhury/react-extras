@@ -382,9 +382,7 @@ function generateNextjsDockerfile(pm: PackageManager, cwd: string): string {
     const depsCopy = `COPY package.json ${config.lockfile} ./`;
     const depsInstall = `RUN ${config.frozenInstall}`;
     const builderSetup =
-        pm === "pnpm" || pm === "yarn"
-            ? `RUN corepack enable ${pm}\n`
-            : "";
+        pm === "pnpm" || pm === "yarn" ? `RUN corepack enable ${pm}\n` : "";
     const builderRun = `RUN ${config.run} build`;
 
     return `FROM ${config.dockerBase} AS base

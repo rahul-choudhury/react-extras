@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    statSync,
+    utimesSync,
+    writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { updatePackageJson } from "../package-json.js";
@@ -161,6 +168,9 @@ describe("updatePackageJson", () => {
                 "lint-staged": { "*": "existing" },
             }),
         );
+        const pkgPath = join(tempDir, "package.json");
+        const fixedTime = new Date("2000-01-01T00:00:00.000Z");
+        utimesSync(pkgPath, fixedTime, fixedTime);
 
         const result = updatePackageJson({
             cwd: tempDir,
@@ -171,5 +181,6 @@ describe("updatePackageJson", () => {
         });
 
         expect(result.added).toEqual([]);
+        expect(statSync(pkgPath).mtimeMs).toBe(fixedTime.getTime());
     });
 });
