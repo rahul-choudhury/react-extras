@@ -296,7 +296,10 @@ describe("copyTemplateFile", () => {
         const dockerfile = files.find((f) => f.targetPath === "Dockerfile");
 
         expect(dockerfile).toBeDefined();
-        copyTemplateFile(tempDir, dockerfile!, "bun", "biome", "nextjs");
+        if (!dockerfile) {
+            throw new Error("Dockerfile template not found");
+        }
+        copyTemplateFile(tempDir, dockerfile, "bun", "biome", "nextjs");
 
         const content = readFileSync(join(tempDir, "Dockerfile"), "utf-8");
         expect(content).toContain("bun.lockb");
@@ -307,7 +310,10 @@ describe("copyTemplateFile", () => {
         const hook = files.find((f) => f.targetPath === ".husky/pre-commit");
 
         expect(hook).toBeDefined();
-        copyTemplateFile(tempDir, hook!, "npm", "biome", "nextjs");
+        if (!hook) {
+            throw new Error("Husky hook template not found");
+        }
+        copyTemplateFile(tempDir, hook, "npm", "biome", "nextjs");
 
         const hookPath = join(tempDir, ".husky", "pre-commit");
         const content = readFileSync(hookPath, "utf-8");

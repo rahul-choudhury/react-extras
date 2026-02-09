@@ -378,42 +378,14 @@ CMD ["nginx", "-g", "daemon off;"]
 function generateNextjsDockerfile(pm: PackageManager, cwd: string): string {
     const config = getPMConfig(pm, { cwd });
 
-    let depsSetup: string;
-    let depsCopy: string;
-    let depsInstall: string;
-    let builderSetup: string;
-    let builderRun: string;
-
-    switch (pm) {
-        case "pnpm":
-            depsSetup = "RUN corepack enable pnpm\n";
-            depsCopy = `COPY package.json ${config.lockfile} ./`;
-            depsInstall = "RUN pnpm install --frozen-lockfile";
-            builderSetup = "RUN corepack enable pnpm\n";
-            builderRun = "RUN pnpm run build";
-            break;
-        case "yarn":
-            depsSetup = "RUN corepack enable yarn\n";
-            depsCopy = `COPY package.json ${config.lockfile} ./`;
-            depsInstall = "RUN yarn install --frozen-lockfile";
-            builderSetup = "RUN corepack enable yarn\n";
-            builderRun = "RUN yarn build";
-            break;
-        case "bun":
-            depsSetup = "";
-            depsCopy = `COPY package.json ${config.lockfile} ./`;
-            depsInstall = "RUN bun install --frozen-lockfile";
-            builderSetup = "";
-            builderRun = "RUN bun run build";
-            break;
-        default:
-            depsSetup = "";
-            depsCopy = `COPY package.json ${config.lockfile} ./`;
-            depsInstall = "RUN npm ci";
-            builderSetup = "";
-            builderRun = "RUN npm run build";
-            break;
-    }
+    const depsSetup = "";
+    const depsCopy = `COPY package.json ${config.lockfile} ./`;
+    const depsInstall = `RUN ${config.frozenInstall}`;
+    const builderSetup =
+        pm === "pnpm" || pm === "yarn"
+            ? `RUN corepack enable ${pm}\n`
+            : "";
+    const builderRun = `RUN ${config.run} build`;
 
     return `FROM ${config.dockerBase} AS base
 

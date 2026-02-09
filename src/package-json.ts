@@ -32,15 +32,19 @@ export function updatePackageJson(
     const { cwd, mods } = options;
     const pkg = readPackageJson(cwd);
     const added: string[] = [];
+    let changed = false;
 
-    if (!pkg.scripts) {
+    const scriptEntries = Object.entries(mods.scripts);
+    if (scriptEntries.length > 0 && !pkg.scripts) {
         pkg.scripts = {};
     }
 
-    for (const [key, value] of Object.entries(mods.scripts)) {
-        if (!pkg.scripts[key]) {
+    for (const [key, value] of scriptEntries) {
+        if (!pkg.scripts?.[key]) {
+            pkg.scripts = pkg.scripts ?? {};
             pkg.scripts[key] = value;
             added.push(`${key} script`);
+            changed = true;
         }
     }
 
@@ -48,10 +52,13 @@ export function updatePackageJson(
         if (!(key in pkg)) {
             pkg[key] = value;
             added.push(`${key} config`);
+            changed = true;
         }
     }
 
-    writePackageJson(cwd, pkg);
+    if (changed) {
+        writePackageJson(cwd, pkg);
+    }
 
     return { added };
 }
