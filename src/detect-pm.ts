@@ -57,7 +57,11 @@ export interface PMConfigOptions {
 }
 
 function getNodeMajorVersion(): string {
-    return process.version.split(".")[0].replace("v", "");
+    const version =
+        typeof process.versions?.node === "string"
+            ? process.versions.node
+            : process.version;
+    return version.split(".")[0].replace("v", "");
 }
 
 export function getPMConfig(

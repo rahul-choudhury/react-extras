@@ -1,9 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+    mkdirSync,
+    mkdtempSync,
+    readFileSync,
+    rmSync,
+    statSync,
+    writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     checkExistingFiles,
+    copyTemplateFile,
     getPackageJsonMods,
     getRequiredDependencies,
     getTemplateFiles,
@@ -268,5 +276,48 @@ describe("getPackageJsonMods", () => {
 
         expect(mods.scripts).toEqual({});
         expect(mods.config).toEqual({});
+    });
+});
+
+describe("copyTemplateFile", () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        tempDir = mkdtempSync(join(tmpdir(), "copy-template-test-"));
+    });
+
+    afterEach(() => {
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("writes bun.lockb into Next.js Dockerfile when bun.lockb exists", () => {
+        writeFileSync(join(tempDir, "bun.lockb"), "");
+        const files = getTemplateFiles(tempDir, "nextjs");
+        const dockerfile = files.find((f) => f.targetPath === "Dockerfile");
+
+        expect(dockerfile).toBeDefined();
+        copyTemplateFile(tempDir, dockerfile!, "bun", "biome", "nextjs");
+
+        const content = readFileSync(join(tempDir, "Dockerfile"), "utf-8");
+        expect(content).toContain("bun.lockb");
+    });
+
+    test("writes husky hook with shim and executable bit", () => {
+        const files = getTemplateFiles(tempDir, "nextjs");
+        const hook = files.find((f) => f.targetPath === ".husky/pre-commit");
+
+        expect(hook).toBeDefined();
+        copyTemplateFile(tempDir, hook!, "npm", "biome", "nextjs");
+
+        const hookPath = join(tempDir, ".husky", "pre-commit");
+        const content = readFileSync(hookPath, "utf-8");
+        expect(content.startsWith("#!/bin/sh")).toBe(true);
+        expect(content).toContain('. "$(dirname "$0")/_/husky.sh"');
+        expect(content).toContain("npx lint-staged");
+
+        if (process.platform !== "win32") {
+            const mode = statSync(hookPath).mode & 0o111;
+            expect(mode).toBeGreaterThan(0);
+        }
     });
 });

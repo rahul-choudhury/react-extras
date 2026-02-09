@@ -86,4 +86,12 @@ describe("getPMConfig", () => {
         const config = getPMConfig("bun", { cwd: tempDir });
         expect(config.lockfile).toBe("bun.lock");
     });
+
+    test("uses node major version from process.versions.node when available", () => {
+        const version = process.versions?.node ?? process.version;
+        const expectedMajor = version.split(".")[0].replace("v", "");
+        const config = getPMConfig("npm", { cwd: tempDir });
+        expect(config.dockerBase).toBe(`node:${expectedMajor}-alpine`);
+        expect(config.setupAction).toContain(`node-version: ${expectedMajor}`);
+    });
 });

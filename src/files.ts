@@ -1,4 +1,10 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+    chmodSync,
+    existsSync,
+    mkdirSync,
+    readFileSync,
+    writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Framework } from "./detect-framework.js";
@@ -266,6 +272,11 @@ export function copyTemplateFile(
 
     const content = resolveContent(def.content, ctx);
     writeFileSync(targetPath, content);
+    if (templateFile.targetPath.startsWith(".husky/")) {
+        try {
+            chmodSync(targetPath, 0o755);
+        } catch {}
+    }
 }
 
 function resolveContent(
@@ -376,28 +387,28 @@ function generateNextjsDockerfile(pm: PackageManager, cwd: string): string {
     switch (pm) {
         case "pnpm":
             depsSetup = "RUN corepack enable pnpm\n";
-            depsCopy = "COPY package.json pnpm-lock.yaml ./";
+            depsCopy = `COPY package.json ${config.lockfile} ./`;
             depsInstall = "RUN pnpm install --frozen-lockfile";
             builderSetup = "RUN corepack enable pnpm\n";
             builderRun = "RUN pnpm run build";
             break;
         case "yarn":
             depsSetup = "RUN corepack enable yarn\n";
-            depsCopy = "COPY package.json yarn.lock ./";
+            depsCopy = `COPY package.json ${config.lockfile} ./`;
             depsInstall = "RUN yarn install --frozen-lockfile";
             builderSetup = "RUN corepack enable yarn\n";
             builderRun = "RUN yarn build";
             break;
         case "bun":
             depsSetup = "";
-            depsCopy = "COPY package.json bun.lock ./";
+            depsCopy = `COPY package.json ${config.lockfile} ./`;
             depsInstall = "RUN bun install --frozen-lockfile";
             builderSetup = "";
             builderRun = "RUN bun run build";
             break;
         default:
             depsSetup = "";
-            depsCopy = "COPY package.json package-lock.json ./";
+            depsCopy = `COPY package.json ${config.lockfile} ./`;
             depsInstall = "RUN npm ci";
             builderSetup = "";
             builderRun = "RUN npm run build";
@@ -433,7 +444,11 @@ CMD ["node", "server.js"]
 
 function generatePreCommitHook(pm: PackageManager, cwd: string): string {
     const config = getPMConfig(pm, { cwd });
-    return `${config.runX} lint-staged\n`;
+    return `#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+${config.runX} lint-staged
+`;
 }
 
 function generateExtensionsJson(tooling: Tooling): string {
