@@ -160,11 +160,11 @@ export function generateExtensionsJson(tooling: Tooling): string {
 export function generateConfigTs(framework: Framework): string {
     if (framework === "nextjs") {
         return `export const apiBaseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "";
 `;
     }
 
     return `export const apiBaseUrl =
-    import.meta.env.VITE_API_BASE_URL ?? "";
+  import.meta.env.VITE_API_BASE_URL ?? "";
 `;
 }

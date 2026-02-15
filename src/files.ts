@@ -18,12 +18,12 @@ export type { GeneratorContext } from "./templates.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-interface ResolvedFile {
+export interface ResolvedFile {
     targetPath: string;
     content: ContentResolver;
 }
 
-interface ResolvedGroup {
+export interface ResolvedGroup {
     label: string;
     hint: string;
     files: ResolvedFile[];
@@ -33,7 +33,7 @@ interface ResolvedGroup {
         | ((ctx: GeneratorContext) => PackageJsonMods);
 }
 
-interface ResolvedPackageJsonMods {
+export interface ResolvedPackageJsonMods {
     scripts: Record<string, string>;
     config: Record<string, unknown>;
 }

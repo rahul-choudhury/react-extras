@@ -7,12 +7,12 @@ interface PackageJson {
     [key: string]: unknown;
 }
 
-interface UpdatePackageJsonOptions {
+export interface UpdatePackageJsonOptions {
     cwd: string;
     mods: ResolvedPackageJsonMods;
 }
 
-interface UpdatePackageJsonResult {
+export interface UpdatePackageJsonResult {
     added: string[];
 }
 
