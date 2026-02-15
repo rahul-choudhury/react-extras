@@ -11,14 +11,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     checkExistingFiles,
-    copyTemplateFile,
+    copyFile,
+    type GeneratorContext,
     getPackageJsonMods,
-    getRequiredDependencies,
-    getTemplateFiles,
+    getRequiredPackages,
     getTemplatesDir,
+    resolveGroups,
 } from "../files.js";
 
-describe("getTemplateFiles", () => {
+describe("resolveGroups", () => {
     let tempDir: string;
 
     beforeEach(() => {
@@ -29,81 +30,146 @@ describe("getTemplateFiles", () => {
         rmSync(tempDir, { recursive: true, force: true });
     });
 
-    test("returns template files for nextjs framework", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const labels = files.map((f) => f.label);
+    test("returns 4 groups for nextjs+biome", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
 
-        expect(labels).toContain("GitHub Actions workflow");
-        expect(labels).toContain("Dockerfile");
-        expect(labels).toContain("EditorConfig");
-        expect(labels).toContain("API client");
-        expect(labels).not.toContain("Nginx config");
+        expect(groups).toHaveLength(4);
+        const labels = groups.map((g) => g.label);
+        expect(labels).toContain("Deployment + CI/CD");
+        expect(labels).toContain("Editor Setup");
+        expect(labels).toContain("Pre-commit Hook");
+        expect(labels).toContain("API Client");
     });
 
-    test("includes zed settings when using biome", () => {
-        const files = getTemplateFiles(tempDir, "nextjs", "biome");
-        const labels = files.map((f) => f.label);
+    test("Deployment + CI/CD contains Dockerfile and deploy.yml for nextjs (no nginx.conf)", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
 
-        expect(labels).toContain("Zed settings");
+        if (!deploy) throw new Error("expected group");
+        const paths = deploy.files.map((f) => f.targetPath);
+        expect(paths).toContain("Dockerfile");
+        expect(paths).toContain(".github/workflows/deploy.yml");
+        expect(paths).not.toContain("nginx.conf");
     });
 
-    test("excludes zed settings when not using biome", () => {
-        const files = getTemplateFiles(tempDir, "nextjs", "eslint-prettier");
-        const labels = files.map((f) => f.label);
+    test("Deployment + CI/CD contains Dockerfile, deploy.yml, and nginx.conf for vite-tanstack-router", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "vite-tanstack-router",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
 
-        expect(labels).not.toContain("Zed settings");
+        if (!deploy) throw new Error("expected group");
+        const paths = deploy.files.map((f) => f.targetPath);
+        expect(paths).toContain("Dockerfile");
+        expect(paths).toContain(".github/workflows/deploy.yml");
+        expect(paths).toContain("nginx.conf");
     });
 
-    test("includes nginx config for vite-tanstack-router framework", () => {
-        const files = getTemplateFiles(tempDir, "vite-tanstack-router");
-        const labels = files.map((f) => f.label);
+    test("Editor Setup includes .zed/settings.json when tooling is biome", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const editor = groups.find((g) => g.label === "Editor Setup");
 
-        expect(labels).toContain("Nginx config");
+        if (!editor) throw new Error("expected group");
+        const paths = editor.files.map((f) => f.targetPath);
+        expect(paths).toContain(".zed/settings.json");
     });
 
-    test("uses lib/api-client.ts when no src directory exists", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const apiClient = files.find((f) => f.label === "API client");
+    test("Editor Setup excludes .zed/settings.json when tooling is eslint-prettier", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "eslint-prettier",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const editor = groups.find((g) => g.label === "Editor Setup");
 
-        expect(apiClient?.targetPath).toBe("lib/api-client.ts");
+        if (!editor) throw new Error("expected group");
+        const paths = editor.files.map((f) => f.targetPath);
+        expect(paths).not.toContain(".zed/settings.json");
     });
 
-    test("uses src/lib/api-client.ts when src directory exists", () => {
+    test("API Client uses lib/ paths when no src directory exists", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const apiClient = groups.find((g) => g.label === "API Client");
+
+        if (!apiClient) throw new Error("expected group");
+        const paths = apiClient.files.map((f) => f.targetPath);
+        expect(paths).toContain("lib/api-client.ts");
+        expect(paths).toContain("lib/config.ts");
+    });
+
+    test("API Client uses src/lib/ paths when src directory exists", () => {
         mkdirSync(join(tempDir, "src"));
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const apiClient = files.find((f) => f.label === "API client");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const apiClient = groups.find((g) => g.label === "API Client");
 
-        expect(apiClient?.targetPath).toBe("src/lib/api-client.ts");
+        if (!apiClient) throw new Error("expected group");
+        const paths = apiClient.files.map((f) => f.targetPath);
+        expect(paths).toContain("src/lib/api-client.ts");
+        expect(paths).toContain("src/lib/config.ts");
     });
 
-    test("includes api config next to api client", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const apiConfig = files.find((f) => f.label === "API config");
+    test("hint contains comma-separated file paths", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
 
-        expect(apiConfig?.targetPath).toBe("lib/config.ts");
+        if (!deploy) throw new Error("expected group");
+        expect(deploy.hint).toBe("Dockerfile, .github/workflows/deploy.yml");
     });
 
-    test("uses src/lib/config.ts when src directory exists", () => {
-        mkdirSync(join(tempDir, "src"));
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const apiConfig = files.find((f) => f.label === "API config");
+    test("groups with all files filtered out are excluded", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
 
-        expect(apiConfig?.targetPath).toBe("src/lib/config.ts");
-    });
-
-    test("static templates have correct templatePath", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const editorconfig = files.find((f) => f.label === "EditorConfig");
-
-        expect(editorconfig?.templatePath).toBe("editorconfig");
-    });
-
-    test("dynamic templates use targetPath as templatePath", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const dockerfile = files.find((f) => f.label === "Dockerfile");
-
-        expect(dockerfile?.templatePath).toBe("Dockerfile");
-        expect(dockerfile?.targetPath).toBe("Dockerfile");
+        for (const group of groups) {
+            expect(group.files.length).toBeGreaterThan(0);
+        }
     });
 });
 
@@ -127,33 +193,51 @@ describe("checkExistingFiles", () => {
 
     test("marks existing files correctly", () => {
         writeFileSync(join(tempDir, "Dockerfile"), "");
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const status = checkExistingFiles(tempDir, files);
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
+        if (!deploy) throw new Error("expected group");
+        const status = checkExistingFiles(tempDir, deploy.files);
 
-        const dockerfile = status.find((s) => s.file.label === "Dockerfile");
-        const editorconfig = status.find(
-            (s) => s.file.label === "EditorConfig",
+        const dockerfile = status.find(
+            (s) => s.file.targetPath === "Dockerfile",
+        );
+        const deployYml = status.find(
+            (s) => s.file.targetPath === ".github/workflows/deploy.yml",
         );
 
         expect(dockerfile?.exists).toBe(true);
-        expect(editorconfig?.exists).toBe(false);
+        expect(deployYml?.exists).toBe(false);
     });
 
     test("handles nested paths", () => {
         mkdirSync(join(tempDir, ".github", "workflows"), { recursive: true });
         writeFileSync(join(tempDir, ".github", "workflows", "deploy.yml"), "");
 
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const status = checkExistingFiles(tempDir, files);
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
+        if (!deploy) throw new Error("expected group");
+        const status = checkExistingFiles(tempDir, deploy.files);
 
         const workflow = status.find(
-            (s) => s.file.label === "GitHub Actions workflow",
+            (s) => s.file.targetPath === ".github/workflows/deploy.yml",
         );
         expect(workflow?.exists).toBe(true);
     });
 });
 
-describe("getRequiredDependencies", () => {
+describe("getRequiredPackages", () => {
     let tempDir: string;
 
     beforeEach(() => {
@@ -164,30 +248,46 @@ describe("getRequiredDependencies", () => {
         rmSync(tempDir, { recursive: true, force: true });
     });
 
-    test("returns dependencies from husky pre-commit hook", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const huskyFile = files.filter(
-            (f) => f.targetPath === ".husky/pre-commit",
-        );
+    test("returns husky and lint-staged from Pre-commit Hook group", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const preCommit = groups.filter((g) => g.label === "Pre-commit Hook");
 
-        const deps = getRequiredDependencies(huskyFile);
+        const deps = getRequiredPackages(preCommit);
         expect(deps).toContain("husky");
         expect(deps).toContain("lint-staged");
     });
 
-    test("returns empty array for templates without dependencies", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const noDepsFiles = files.filter(
-            (f) => f.targetPath !== ".husky/pre-commit",
+    test("returns empty array when Pre-commit Hook is not selected", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const withoutPreCommit = groups.filter(
+            (g) => g.label !== "Pre-commit Hook",
         );
 
-        const deps = getRequiredDependencies(noDepsFiles);
+        const deps = getRequiredPackages(withoutPreCommit);
         expect(deps).toEqual([]);
     });
 
-    test("deduplicates dependencies across multiple templates", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const deps = getRequiredDependencies(files);
+    test("deduplicates packages", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deps = getRequiredPackages(groups);
 
         const uniqueDeps = [...new Set(deps)];
         expect(deps.length).toBe(uniqueDeps.length);
@@ -205,81 +305,85 @@ describe("getPackageJsonMods", () => {
         rmSync(tempDir, { recursive: true, force: true });
     });
 
-    test("collects scripts from husky template", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const huskyFile = files.filter(
-            (f) => f.targetPath === ".husky/pre-commit",
-        );
-
-        const ctx = {
+    test("collects scripts from Deployment + CI/CD group (check, typecheck)", () => {
+        const ctx: GeneratorContext = {
             cwd: tempDir,
-            pm: "npm" as const,
-            tooling: "biome" as const,
-            framework: "nextjs" as const,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
         };
-        const mods = getPackageJsonMods(huskyFile, ctx);
+        const groups = resolveGroups(ctx);
+        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
+        const mods = getPackageJsonMods(deploy, ctx);
+        expect(mods.scripts.check).toBe("biome check .");
+        expect(mods.scripts.typecheck).toBe("tsc --noEmit");
+    });
+
+    test("collects scripts and config from Pre-commit Hook group (prepare, lint-staged)", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const preCommit = groups.filter((g) => g.label === "Pre-commit Hook");
+
+        const mods = getPackageJsonMods(preCommit, ctx);
         expect(mods.scripts.prepare).toBe("husky");
         expect(mods.config["lint-staged"]).toEqual({
             "*": "biome check --write --no-errors-on-unmatched",
         });
     });
 
-    test("collects scripts from workflow template", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const workflowFile = files.filter(
-            (f) => f.targetPath === ".github/workflows/deploy.yml",
-        );
-
-        const ctx = {
+    test("uses biome check script when tooling is biome", () => {
+        const ctx: GeneratorContext = {
             cwd: tempDir,
-            pm: "npm" as const,
-            tooling: "biome" as const,
-            framework: "nextjs" as const,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
         };
-        const mods = getPackageJsonMods(workflowFile, ctx);
+        const groups = resolveGroups(ctx);
+        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
+        const mods = getPackageJsonMods(deploy, ctx);
         expect(mods.scripts.check).toBe("biome check .");
-        expect(mods.scripts.typecheck).toBe("tsc --noEmit");
     });
 
-    test("uses eslint-prettier check script when tooling is eslint-prettier", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const workflowFile = files.filter(
-            (f) => f.targetPath === ".github/workflows/deploy.yml",
-        );
-
-        const ctx = {
+    test("uses eslint+prettier check script when tooling is eslint-prettier", () => {
+        const ctx: GeneratorContext = {
             cwd: tempDir,
-            pm: "npm" as const,
-            tooling: "eslint-prettier" as const,
-            framework: "nextjs" as const,
+            pm: "npm",
+            tooling: "eslint-prettier",
+            framework: "nextjs",
         };
-        const mods = getPackageJsonMods(workflowFile, ctx);
+        const groups = resolveGroups(ctx);
+        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
+        const mods = getPackageJsonMods(deploy, ctx);
         expect(mods.scripts.check).toBe("eslint . && prettier --check .");
     });
 
-    test("returns empty mods for templates without packageJson", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const editorConfigFile = files.filter(
-            (f) => f.targetPath === ".editorconfig",
+    test("returns empty mods for groups without packageJson (Editor Setup, API Client)", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const noMods = groups.filter(
+            (g) => g.label === "Editor Setup" || g.label === "API Client",
         );
 
-        const ctx = {
-            cwd: tempDir,
-            pm: "npm" as const,
-            tooling: "biome" as const,
-            framework: "nextjs" as const,
-        };
-        const mods = getPackageJsonMods(editorConfigFile, ctx);
-
+        const mods = getPackageJsonMods(noMods, ctx);
         expect(mods.scripts).toEqual({});
         expect(mods.config).toEqual({});
     });
 });
 
-describe("copyTemplateFile", () => {
+describe("copyFile", () => {
     let tempDir: string;
 
     beforeEach(() => {
@@ -292,28 +396,42 @@ describe("copyTemplateFile", () => {
 
     test("writes bun.lockb into Next.js Dockerfile when bun.lockb exists", () => {
         writeFileSync(join(tempDir, "bun.lockb"), "");
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const dockerfile = files.find((f) => f.targetPath === "Dockerfile");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "bun",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
+        if (!deploy) throw new Error("expected group");
+        const dockerfile = deploy.files.find(
+            (f) => f.targetPath === "Dockerfile",
+        );
 
-        expect(dockerfile).toBeDefined();
-        if (!dockerfile) {
-            throw new Error("Dockerfile template not found");
-        }
-        copyTemplateFile(tempDir, dockerfile, "bun", "biome", "nextjs");
+        if (!dockerfile) throw new Error("expected file");
+        copyFile(tempDir, dockerfile, ctx);
 
         const content = readFileSync(join(tempDir, "Dockerfile"), "utf-8");
         expect(content).toContain("bun.lockb");
     });
 
     test("writes husky hook with shim and executable bit", () => {
-        const files = getTemplateFiles(tempDir, "nextjs");
-        const hook = files.find((f) => f.targetPath === ".husky/pre-commit");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const preCommit = groups.find((g) => g.label === "Pre-commit Hook");
+        if (!preCommit) throw new Error("expected group");
+        const hook = preCommit.files.find(
+            (f) => f.targetPath === ".husky/pre-commit",
+        );
 
-        expect(hook).toBeDefined();
-        if (!hook) {
-            throw new Error("Husky hook template not found");
-        }
-        copyTemplateFile(tempDir, hook, "npm", "biome", "nextjs");
+        if (!hook) throw new Error("expected file");
+        copyFile(tempDir, hook, ctx);
 
         const hookPath = join(tempDir, ".husky", "pre-commit");
         const content = readFileSync(hookPath, "utf-8");

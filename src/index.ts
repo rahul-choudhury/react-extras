@@ -14,11 +14,11 @@ import { detectPackageManager, getInstallCommand } from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
 import {
     checkExistingFiles,
-    copyTemplateFile,
+    copyFile,
     type GeneratorContext,
     getPackageJsonMods,
-    getRequiredDependencies,
-    getTemplateFiles,
+    getRequiredPackages,
+    resolveGroups,
 } from "./files.js";
 import { ensureStandaloneOutput } from "./next-config.js";
 import { updatePackageJson } from "./package-json.js";
@@ -67,34 +67,34 @@ async function main() {
         p.log.info(`Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`);
     }
 
-    const allTemplateFiles = getTemplateFiles(cwd, framework, tooling);
+    const ctx: GeneratorContext = { cwd, pm, tooling, framework };
+    const groups = resolveGroups(ctx);
 
-    const selectedExtras = await p.multiselect({
+    const selectedGroups = await p.multiselect({
         message: "Select extras to add:",
-        options: allTemplateFiles.map((file) => ({
-            value: file.targetPath,
-            label: file.label,
-            hint: file.targetPath,
+        options: groups.map((group) => ({
+            value: group.label,
+            label: group.label,
+            hint: group.hint,
         })),
-        initialValues: allTemplateFiles.map((f) => f.targetPath),
+        initialValues: groups.map((g) => g.label),
         required: false,
     });
 
-    if (p.isCancel(selectedExtras)) {
+    if (p.isCancel(selectedGroups)) {
         p.cancel("Operation cancelled.");
         process.exit(0);
     }
 
-    const selectedPaths = selectedExtras as string[];
-    if (selectedPaths.length === 0) {
+    const selectedLabels = selectedGroups as string[];
+    if (selectedLabels.length === 0) {
         p.cancel("No extras selected.");
         process.exit(0);
     }
 
-    const templateFiles = allTemplateFiles.filter((f) =>
-        selectedPaths.includes(f.targetPath),
-    );
-    const fileStatus = checkExistingFiles(cwd, templateFiles);
+    const selected = groups.filter((g) => selectedLabels.includes(g.label));
+    const allFiles = selected.flatMap((g) => g.files);
+    const fileStatus = checkExistingFiles(cwd, allFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
     p.log.message(pc.dim("Files to create:"));
@@ -116,7 +116,6 @@ async function main() {
             options: existingFiles.map(({ file }) => ({
                 value: file.targetPath,
                 label: file.targetPath,
-                hint: file.label,
             })),
             required: false,
         });
@@ -132,10 +131,10 @@ async function main() {
             .map(({ file }) => file.targetPath);
     }
 
-    const templateFilesToApply = templateFiles.filter(
+    const filesToApply = allFiles.filter(
         (f) => !filesToSkip.includes(f.targetPath),
     );
-    const requiredDeps = getRequiredDependencies(templateFilesToApply);
+    const requiredDeps = getRequiredPackages(selected);
 
     if (requiredDeps.length > 0) {
         p.log.message(pc.dim("Dependencies to install:"));
@@ -185,16 +184,13 @@ async function main() {
 
     s.start("Copying template files...");
 
-    for (const { file } of fileStatus) {
-        if (!filesToSkip.includes(file.targetPath)) {
-            copyTemplateFile(cwd, file, pm, tooling, framework);
-        }
+    for (const file of filesToApply) {
+        copyFile(cwd, file, ctx);
     }
 
     s.stop("Template files copied");
 
-    const ctx: GeneratorContext = { cwd, pm, tooling, framework };
-    const mods = getPackageJsonMods(templateFilesToApply, ctx);
+    const mods = getPackageJsonMods(selected, ctx);
 
     s.start("Updating package.json...");
     const { added } = updatePackageJson({ cwd, mods });
