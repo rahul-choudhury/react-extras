@@ -1,6 +1,6 @@
 {
   "name": "@rahul-choudhury/react-extras",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Set up deployment, linting, and editor configuration for React apps",
   "author": "Rahul Choudhury",
   "repository": {
