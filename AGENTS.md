@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## Commands
 
 ```bash
@@ -24,19 +20,19 @@ The CLI runs three detection modules in sequence, each returning a result with a
 2. **detect-framework.ts** - Detects framework (Next.js via config files/deps, Vite+TanStack via package.json)
 3. **detect-tooling.ts** - Detects linter (Biome via biome.json or deps, ESLint/Prettier via deps)
 
-### File Generation
+### Template System
 
-**files.ts** handles template generation. Files are either:
-- Copied from `templates/` directory (pre-commit hook, nginx.conf, editorconfig)
-- Generated dynamically based on detection results (Dockerfile, deploy.yml, extensions.json)
+- **templates.ts** - Declares `TEMPLATE_GROUPS` (Deployment, Editor Setup, Pre-commit Hook, API Client), each with file definitions, optional packages, and package.json modifications
+- **generators.ts** - Dynamic content generators (Dockerfile, deploy.yml, pre-commit hook, extensions.json, config.ts)
+- **files.ts** - Resolves template groups against context, writes files to disk
 
-Key difference: Next.js gets a standalone Node.js Dockerfile; Vite gets nginx-based static serving.
+Static templates live in `templates/`; most files are generated dynamically based on detection results. Next.js gets a standalone Node.js Dockerfile; Vite gets nginx-based static serving.
 
 ### Supporting Modules
 
 - **next-config.ts** - Adds `output: "standalone"` to next.config via regex patterns
-- **package-json.ts** - Adds `prepare`, `typecheck`, `check` scripts and `lint-staged` config
+- **package-json.ts** - Adds scripts and config entries to the target project's package.json
 
 ### Entry Point
 
-**index.ts** orchestrates the flow: detect → show file list → prompt for overwrites → copy templates → update package.json → install husky/lint-staged.
+**index.ts** orchestrates the flow: detect → select template groups → show file list → prompt for overwrites → copy templates → update package.json → install deps.
