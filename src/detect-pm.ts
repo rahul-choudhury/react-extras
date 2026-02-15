@@ -42,7 +42,7 @@ export function getInstallCommand(
     }
 }
 
-export interface PMConfig {
+interface PMConfig {
     setupAction: string;
     install: string;
     run: string;
@@ -52,7 +52,7 @@ export interface PMConfig {
     frozenInstall: string;
 }
 
-export interface PMConfigOptions {
+interface PMConfigOptions {
     cwd?: string;
 }
 

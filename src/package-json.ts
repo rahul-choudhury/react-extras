@@ -2,17 +2,17 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ResolvedPackageJsonMods } from "./files.js";
 
-export interface PackageJson {
+interface PackageJson {
     scripts?: Record<string, string>;
     [key: string]: unknown;
 }
 
-export interface UpdatePackageJsonOptions {
+interface UpdatePackageJsonOptions {
     cwd: string;
     mods: ResolvedPackageJsonMods;
 }
 
-export interface UpdatePackageJsonResult {
+interface UpdatePackageJsonResult {
     added: string[];
 }
 
