@@ -1,5 +1,6 @@
-import { existsSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Framework } from "./detect-framework.js";
 import type { PackageManager } from "./detect-pm.js";
 import { getLintStagedConfig, type Tooling } from "./detect-tooling.js";
@@ -32,9 +33,12 @@ export interface NextStepDefinition {
     stage?: NextStepStage;
 }
 
-export type ContentResolver =
-    | { type: "static"; templatePath: string }
-    | { type: "dynamic"; generate: (ctx: GeneratorContext) => string };
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const TEMPLATES_DIR = join(__dirname, "..", "templates");
+
+function renderTemplate(templatePath: string) {
+    return () => readFileSync(join(TEMPLATES_DIR, templatePath), "utf-8");
+}
 
 export interface PackageJsonMods {
     scripts?: Record<string, string>;
@@ -43,7 +47,8 @@ export interface PackageJsonMods {
 
 export interface TemplateFileDefinition {
     targetPath: string | ((ctx: GeneratorContext) => string);
-    content: ContentResolver;
+    render: (ctx: GeneratorContext) => string;
+    executable?: boolean;
     when?: (ctx: GeneratorContext) => boolean;
 }
 
@@ -67,22 +72,16 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         files: [
             {
                 targetPath: "Dockerfile",
-                content: {
-                    type: "dynamic",
-                    generate: (ctx) =>
-                        generateDockerfile(ctx.pm, ctx.framework, ctx.cwd),
-                },
+                render: (ctx) =>
+                    generateDockerfile(ctx.pm, ctx.framework, ctx.cwd),
             },
             {
                 targetPath: ".github/workflows/deploy.yml",
-                content: {
-                    type: "dynamic",
-                    generate: (ctx) => generateDeployYml(ctx.pm, ctx.cwd),
-                },
+                render: (ctx) => generateDeployYml(ctx.pm, ctx.cwd),
             },
             {
                 targetPath: "nginx.conf",
-                content: { type: "static", templatePath: "nginx.conf" },
+                render: renderTemplate("nginx.conf"),
                 when: (ctx) => ctx.framework !== "nextjs",
             },
         ],
@@ -112,18 +111,15 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         files: [
             {
                 targetPath: ".editorconfig",
-                content: { type: "static", templatePath: "editorconfig" },
+                render: renderTemplate("editorconfig"),
             },
             {
                 targetPath: ".vscode/extensions.json",
-                content: {
-                    type: "dynamic",
-                    generate: (ctx) => generateExtensionsJson(ctx.tooling),
-                },
+                render: (ctx) => generateExtensionsJson(ctx.tooling),
             },
             {
                 targetPath: ".zed/settings.json",
-                content: { type: "static", templatePath: "zed-settings.json" },
+                render: renderTemplate("zed-settings.json"),
                 when: (ctx) => ctx.tooling === "biome",
             },
         ],
@@ -134,10 +130,8 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         files: [
             {
                 targetPath: ".husky/pre-commit",
-                content: {
-                    type: "dynamic",
-                    generate: (ctx) => generatePreCommitHook(ctx.pm, ctx.cwd),
-                },
+                render: (ctx) => generatePreCommitHook(ctx.pm, ctx.cwd),
+                executable: true,
             },
         ],
         packages: ["husky", "lint-staged"],
@@ -156,17 +150,14 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
                     existsSync(join(ctx.cwd, "src"))
                         ? "src/lib/api-client.ts"
                         : "lib/api-client.ts",
-                content: { type: "static", templatePath: "lib/api-client.ts" },
+                render: renderTemplate("lib/api-client.ts"),
             },
             {
                 targetPath: (ctx) =>
                     existsSync(join(ctx.cwd, "src"))
                         ? "src/lib/config.ts"
                         : "lib/config.ts",
-                content: {
-                    type: "dynamic",
-                    generate: (ctx) => generateConfigTs(ctx.framework),
-                },
+                render: (ctx) => generateConfigTs(ctx.framework),
             },
         ],
     },

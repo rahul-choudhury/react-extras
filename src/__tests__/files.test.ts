@@ -189,6 +189,22 @@ describe("resolveGroups", () => {
         ]);
     });
 
+    test("marks executable files from template metadata", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const preCommit = groups.find((g) => g.id === "pre-commit");
+        const hook = preCommit?.files.find(
+            (file) => file.targetPath === ".husky/pre-commit",
+        );
+
+        expect(hook?.executable).toBe(true);
+    });
+
     test("groups with all files filtered out are excluded", () => {
         const ctx: GeneratorContext = {
             cwd: tempDir,

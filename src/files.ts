@@ -1,14 +1,7 @@
-import {
-    chmodSync,
-    existsSync,
-    mkdirSync,
-    readFileSync,
-    writeFileSync,
-} from "node:fs";
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-    type ContentResolver,
     type GeneratorContext,
     type NextStepDefinition,
     type PackageJsonMods,
@@ -22,7 +15,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export interface ResolvedFile {
     targetPath: string;
-    content: ContentResolver;
+    render: (ctx: GeneratorContext) => string;
+    executable: boolean;
 }
 
 export interface ResolvedGroup {
@@ -56,7 +50,11 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
                     ? def.targetPath(ctx)
                     : def.targetPath;
 
-            files.push({ targetPath, content: def.content });
+            files.push({
+                targetPath,
+                render: def.render,
+                executable: def.executable ?? false,
+            });
         }
 
         if (files.length === 0) continue;
@@ -103,19 +101,9 @@ export function copyFile(
     const targetPath = join(cwd, file.targetPath);
     mkdirSync(dirname(targetPath), { recursive: true });
 
-    let content: string;
-    if (file.content.type === "dynamic") {
-        content = file.content.generate(ctx);
-    } else {
-        content = readFileSync(
-            join(getTemplatesDir(), file.content.templatePath),
-            "utf-8",
-        );
-    }
+    writeFileSync(targetPath, file.render(ctx));
 
-    writeFileSync(targetPath, content);
-
-    if (file.targetPath.startsWith(".husky/")) {
+    if (file.executable) {
         try {
             chmodSync(targetPath, 0o755);
         } catch {}
