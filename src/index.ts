@@ -37,54 +37,88 @@ function getSkillsInstallCommand(pm: PackageManager): string {
     }
 }
 
+function cancelAndExit(message: string, exitCode = 0): never {
+    p.cancel(message);
+    process.exit(exitCode);
+}
+
+function logDetection(options: {
+    inferred: boolean;
+    detectedMessage: string;
+    inferredMessage: string;
+}): void {
+    const { inferred, detectedMessage, inferredMessage } = options;
+
+    if (inferred) {
+        p.log.warn(inferredMessage);
+        return;
+    }
+
+    p.log.info(detectedMessage);
+}
+
+async function multiselectOrExit<T extends string>(
+    options: Parameters<typeof p.multiselect>[0],
+): Promise<T[]> {
+    const result = await p.multiselect(options);
+
+    if (p.isCancel(result)) {
+        cancelAndExit("Operation cancelled.");
+    }
+
+    return result as T[];
+}
+
+async function confirmOrExit(
+    options: Parameters<typeof p.confirm>[0],
+): Promise<void> {
+    const result = await p.confirm(options);
+
+    if (p.isCancel(result) || !result) {
+        cancelAndExit("Operation cancelled.");
+    }
+}
+
 async function main() {
     const cwd = process.cwd();
 
     p.intro("react-extras");
 
     if (!existsSync(join(cwd, "package.json"))) {
-        p.cancel(
+        cancelAndExit(
             "No package.json found. Run this in a React project directory.",
+            1,
         );
-        process.exit(1);
     }
 
     const pmResult = detectPackageManager(cwd);
     const pm = pmResult.pm;
-    if (pmResult.inferred) {
-        p.log.warn(
-            `No lock file found, assuming package manager: ${pm} (run "${pm} install" first if this is wrong)`,
-        );
-    } else {
-        p.log.info(`Detected package manager: ${pc.cyan(pm)}`);
-    }
+    logDetection({
+        inferred: pmResult.inferred,
+        inferredMessage: `No lock file found, assuming package manager: ${pm} (run "${pm} install" first if this is wrong)`,
+        detectedMessage: `Detected package manager: ${pc.cyan(pm)}`,
+    });
 
     const frameworkResult = detectFramework(cwd);
     const framework = frameworkResult.framework;
-    if (frameworkResult.inferred) {
-        p.log.warn(
-            `Could not detect framework, assuming: ${getFrameworkLabel(framework)} (Dockerfile and workflows may need adjustment)`,
-        );
-    } else {
-        p.log.info(
-            `Detected framework: ${pc.cyan(getFrameworkLabel(framework))}`,
-        );
-    }
+    logDetection({
+        inferred: frameworkResult.inferred,
+        inferredMessage: `Could not detect framework, assuming: ${getFrameworkLabel(framework)} (Dockerfile and workflows may need adjustment)`,
+        detectedMessage: `Detected framework: ${pc.cyan(getFrameworkLabel(framework))}`,
+    });
 
     const toolingResult = detectTooling(cwd);
     const tooling = toolingResult.tooling;
-    if (toolingResult.inferred) {
-        p.log.warn(
-            `No linter config found, assuming: ${getToolingLabel(tooling)} (lint-staged config may need adjustment)`,
-        );
-    } else {
-        p.log.info(`Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`);
-    }
+    logDetection({
+        inferred: toolingResult.inferred,
+        inferredMessage: `No linter config found, assuming: ${getToolingLabel(tooling)} (lint-staged config may need adjustment)`,
+        detectedMessage: `Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`,
+    });
 
     const ctx: GeneratorContext = { cwd, pm, tooling, framework };
     const groups = resolveGroups(ctx);
 
-    const selectedGroups = await p.multiselect({
+    const selectedIds = await multiselectOrExit<(typeof groups)[number]["id"]>({
         message: "Select extras to add:",
         options: groups.map((group) => ({
             value: group.id,
@@ -95,15 +129,8 @@ async function main() {
         required: false,
     });
 
-    if (p.isCancel(selectedGroups)) {
-        p.cancel("Operation cancelled.");
-        process.exit(0);
-    }
-
-    const selectedIds = selectedGroups as Array<(typeof groups)[number]["id"]>;
     if (selectedIds.length === 0) {
-        p.cancel("No extras selected.");
-        process.exit(0);
+        cancelAndExit("No extras selected.");
     }
 
     const selected = groups.filter((group) => selectedIds.includes(group.id));
@@ -119,7 +146,7 @@ async function main() {
 
     let filesToSkip: string[] = [];
     if (plan.existingFiles.length > 0) {
-        const overwriteChoice = await p.multiselect({
+        const filesToOverwrite = await multiselectOrExit<string>({
             message: "Some files already exist. Select files to overwrite:",
             options: plan.existingFiles.map(({ file }) => ({
                 value: file.targetPath,
@@ -127,13 +154,6 @@ async function main() {
             })),
             required: false,
         });
-
-        if (p.isCancel(overwriteChoice)) {
-            p.cancel("Operation cancelled.");
-            process.exit(0);
-        }
-
-        const filesToOverwrite = overwriteChoice as string[];
         filesToSkip = plan.existingFiles
             .filter(({ file }) => !filesToOverwrite.includes(file.targetPath))
             .map(({ file }) => file.targetPath);
@@ -147,14 +167,9 @@ async function main() {
         }
     }
 
-    const shouldContinue = await p.confirm({
+    await confirmOrExit({
         message: "Proceed with setup?",
     });
-
-    if (p.isCancel(shouldContinue) || !shouldContinue) {
-        p.cancel("Operation cancelled.");
-        process.exit(0);
-    }
 
     const s = p.spinner();
 
