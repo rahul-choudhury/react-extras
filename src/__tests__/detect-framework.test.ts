@@ -2,11 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-    detectFramework,
-    getFrameworkLabel,
-    getNextConfigPath,
-} from "../detect-framework.js";
+import { detectFramework, getFrameworkLabel } from "../detect-framework.js";
 
 describe("detectFramework", () => {
     let tempDir: string;
@@ -126,42 +122,5 @@ describe("getFrameworkLabel", () => {
         expect(getFrameworkLabel("vite-tanstack-router")).toBe(
             "Vite + TanStack Router",
         );
-    });
-});
-
-describe("getNextConfigPath", () => {
-    let tempDir: string;
-
-    beforeEach(() => {
-        tempDir = mkdtempSync(join(tmpdir(), "next-config-path-test-"));
-    });
-
-    afterEach(() => {
-        rmSync(tempDir, { recursive: true, force: true });
-    });
-
-    test("returns path for next.config.ts", () => {
-        writeFileSync(join(tempDir, "next.config.ts"), "");
-        expect(getNextConfigPath(tempDir)).toBe(
-            join(tempDir, "next.config.ts"),
-        );
-    });
-
-    test("returns path for next.config.js", () => {
-        writeFileSync(join(tempDir, "next.config.js"), "");
-        expect(getNextConfigPath(tempDir)).toBe(
-            join(tempDir, "next.config.js"),
-        );
-    });
-
-    test("returns path for next.config.cjs", () => {
-        writeFileSync(join(tempDir, "next.config.cjs"), "");
-        expect(getNextConfigPath(tempDir)).toBe(
-            join(tempDir, "next.config.cjs"),
-        );
-    });
-
-    test("returns null when no config exists", () => {
-        expect(getNextConfigPath(tempDir)).toBeNull();
     });
 });

@@ -10,7 +10,11 @@ import { join } from "node:path";
 import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { detectFramework, getFrameworkLabel } from "./detect-framework.js";
-import { detectPackageManager, getInstallCommand } from "./detect-pm.js";
+import {
+    detectPackageManager,
+    getInstallCommand,
+    type PackageManager,
+} from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
 import {
     checkExistingFiles,
@@ -20,8 +24,20 @@ import {
     getRequiredPackages,
     resolveGroups,
 } from "./files.js";
-import { ensureStandaloneOutput } from "./next-config.js";
 import { updatePackageJson } from "./package-json.js";
+
+function getSkillsInstallCommand(pm: PackageManager): string {
+    switch (pm) {
+        case "pnpm":
+            return "pnpm dlx skills add shadcn/ui";
+        case "yarn":
+            return "yarn skills add shadcn/ui";
+        case "bun":
+            return "bunx --bun skills add shadcn/ui";
+        default:
+            return "npx skills add shadcn/ui";
+    }
+}
 
 async function main() {
     const cwd = process.cwd();
@@ -77,7 +93,7 @@ async function main() {
             label: group.label,
             hint: group.hint,
         })),
-        initialValues: groups.map((g) => g.label),
+        initialValues: groups.map((group) => group.label),
         required: false,
     });
 
@@ -93,20 +109,19 @@ async function main() {
     }
 
     const selected = groups.filter((g) => selectedLabels.includes(g.label));
+    const selectedGroupLabels = new Set(selected.map((group) => group.label));
+    const showNextStandaloneNote =
+        framework === "nextjs" && selectedGroupLabels.has("Deployment + CI/CD");
     const allFiles = selected.flatMap((g) => g.files);
     const fileStatus = checkExistingFiles(cwd, allFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
 
-    p.log.message(pc.dim("Files to create:"));
-    for (const { file, exists } of fileStatus) {
-        const status = exists ? pc.yellow(" (exists, will overwrite)") : "";
-        p.log.message(`  ${file.targetPath}${status}`);
-    }
-
-    if (framework === "nextjs") {
-        p.log.message(
-            "  next.config.ts (will be updated for standalone output)",
-        );
+    if (allFiles.length > 0) {
+        p.log.message(pc.dim("Files to create:"));
+        for (const { file, exists } of fileStatus) {
+            const status = exists ? pc.yellow(" (exists, will overwrite)") : "";
+            p.log.message(`  ${file.targetPath}${status}`);
+        }
     }
 
     let filesToSkip: string[] = [];
@@ -154,41 +169,15 @@ async function main() {
 
     const s = p.spinner();
 
-    // Handle Next.js specific configuration
-    let nextConfigManualRequired = false;
-    if (framework === "nextjs") {
-        s.start("Configuring Next.js for standalone output...");
-        const result = ensureStandaloneOutput(cwd);
+    if (filesToApply.length > 0) {
+        s.start("Copying template files...");
 
-        switch (result.status) {
-            case "created":
-                s.stop("Created next.config.ts with standalone output");
-                break;
-            case "updated":
-                s.stop("Updated next.config with standalone output");
-                break;
-            case "already-configured":
-                s.stop("Next.js already configured for standalone output");
-                break;
-            case "manual-required":
-                nextConfigManualRequired = true;
-                s.stop("! Could not update next.config automatically");
-                p.log.error(
-                    `Action required: ${result.message}\n` +
-                        `   File: ${result.path}\n` +
-                        `   Without this, Docker deployment will fail.`,
-                );
-                break;
+        for (const file of filesToApply) {
+            copyFile(cwd, file, ctx);
         }
+
+        s.stop("Template files copied");
     }
-
-    s.start("Copying template files...");
-
-    for (const file of filesToApply) {
-        copyFile(cwd, file, ctx);
-    }
-
-    s.stop("Template files copied");
 
     const mods = getPackageJsonMods(selected, ctx);
 
@@ -214,24 +203,35 @@ async function main() {
         }
     }
 
-    if (nextConfigManualRequired) {
-        p.outro("Setup complete (with warnings)");
-    } else {
-        p.outro("Setup complete!");
+    p.outro("Setup complete!");
+
+    const nextSteps: string[] = [];
+
+    if (showNextStandaloneNote) {
+        nextSteps.push(
+            `Add ${pc.cyan(`output: "standalone"`)} to your next.config ${pc.dim("(required for Docker)")}`,
+        );
     }
 
-    if (nextConfigManualRequired) {
-        p.log.message(`${pc.dim("Next steps:")}
-  ${pc.yellow("1.")} Add output: "standalone" to your next.config ${pc.dim("(required for Docker)")}
-  ${pc.dim("2.")} Review the created files
-  ${pc.dim("3.")} Update .github/workflows/deploy.yml with your settings
-  ${pc.dim("4.")} Make a commit to test the pre-commit hook`);
-    } else {
-        p.log.message(`${pc.dim("Next steps:")}
-  ${pc.dim("1.")} Review the created files
-  ${pc.dim("2.")} Update .github/workflows/deploy.yml with your settings
-  ${pc.dim("3.")} Make a commit to test the pre-commit hook`);
+    nextSteps.push(
+        `Run ${pc.cyan(getSkillsInstallCommand(pm))} to give AI assistants like Claude Code project-aware context about shadcn/ui.`,
+    );
+    nextSteps.push("Review the created files");
+
+    if (selectedGroupLabels.has("Deployment + CI/CD")) {
+        nextSteps.push(
+            "Update .github/workflows/deploy.yml with your settings",
+        );
     }
+
+    if (selectedGroupLabels.has("Pre-commit Hook")) {
+        nextSteps.push("Make a commit to test the pre-commit hook");
+    }
+
+    p.log.message(`${pc.dim("Next steps:")}
+  ${nextSteps
+      .map((step, index) => `${pc.dim(`${index + 1}.`)} ${step}`)
+      .join("\n  ")}`);
 }
 
 main().catch((err) => {

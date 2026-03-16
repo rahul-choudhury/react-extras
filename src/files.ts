@@ -57,9 +57,11 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
 
         if (files.length === 0) continue;
 
+        const hint = files.map((f) => f.targetPath).join(", ");
+
         resolved.push({
             label: group.label,
-            hint: files.map((f) => f.targetPath).join(", "),
+            hint,
             files,
             packages: group.packages ?? [],
             packageJson: group.packageJson,

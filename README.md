@@ -56,5 +56,5 @@ The CLI also updates your `package.json` with:
 
 ## Supported Frameworks
 
-- Next.js (automatically configures standalone output)
+- Next.js (manually add `output: "standalone"` if you select `Deployment + CI/CD`)
 - Vite + TanStack Router ([Quick Start](https://tanstack.com/router/v1/docs/framework/react/quick-start))

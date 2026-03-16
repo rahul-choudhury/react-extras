@@ -168,7 +168,7 @@ describe("resolveGroups", () => {
         const groups = resolveGroups(ctx);
 
         for (const group of groups) {
-            expect(group.files.length).toBeGreaterThan(0);
+            expect(group.files.length > 0).toBe(true);
         }
     });
 });

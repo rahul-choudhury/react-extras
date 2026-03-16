@@ -48,13 +48,3 @@ export function detectFramework(cwd: string): FrameworkDetectionResult {
 export function getFrameworkLabel(framework: Framework): string {
     return framework === "nextjs" ? "Next.js" : "Vite + TanStack Router";
 }
-
-export function getNextConfigPath(cwd: string): string | null {
-    for (const configFile of NEXTJS_CONFIG_FILES) {
-        const path = join(cwd, configFile);
-        if (existsSync(path)) {
-            return path;
-        }
-    }
-    return null;
-}

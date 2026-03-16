@@ -4,6 +4,7 @@
 bun run build          # Build CLI to ./dist
 bun run dev            # Run with watch mode
 bun run check          # Lint and format with Biome
+bun run typecheck      # Run typechecker with tsc
 bun test               # Run all tests
 bun test <file>        # Run single test file (e.g., bun test src/__tests__/detect-pm.test.ts)
 ```
@@ -30,9 +31,8 @@ Static templates live in `templates/`; most files are generated dynamically base
 
 ### Supporting Modules
 
-- **next-config.ts** - Adds `output: "standalone"` to next.config via regex patterns
 - **package-json.ts** - Adds scripts and config entries to the target project's package.json
 
 ### Entry Point
 
-**index.ts** orchestrates the flow: detect → select template groups → show file list → prompt for overwrites → copy templates → update package.json → install deps.
+**index.ts** orchestrates the flow: detect → select template groups → show file list → prompt for overwrites → copy templates → update package.json → install deps → show manual follow-up notes.
