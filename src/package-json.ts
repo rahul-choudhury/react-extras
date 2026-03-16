@@ -1,11 +1,15 @@
-import { readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ResolvedPackageJsonMods } from "./files.js";
 
-interface PackageJson {
+export interface PackageJson {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
     scripts?: Record<string, string>;
     [key: string]: unknown;
 }
+
+export type PackageJsonDependencies = Record<string, string>;
 
 export interface UpdatePackageJsonOptions {
     cwd: string;
@@ -16,14 +20,36 @@ export interface UpdatePackageJsonResult {
     added: string[];
 }
 
+export function getPackageJsonPath(cwd: string): string {
+    return join(cwd, "package.json");
+}
+
 export function readPackageJson(cwd: string): PackageJson {
-    const pkgPath = join(cwd, "package.json");
-    return JSON.parse(readFileSync(pkgPath, "utf-8"));
+    return JSON.parse(readFileSync(getPackageJsonPath(cwd), "utf-8"));
+}
+
+export function tryReadPackageJson(cwd: string): PackageJson | null {
+    const pkgPath = getPackageJsonPath(cwd);
+    if (!existsSync(pkgPath)) {
+        return null;
+    }
+
+    try {
+        return JSON.parse(readFileSync(pkgPath, "utf-8"));
+    } catch {
+        return null;
+    }
+}
+
+export function getAllDependencies(pkg: PackageJson): PackageJsonDependencies {
+    return {
+        ...pkg.dependencies,
+        ...pkg.devDependencies,
+    };
 }
 
 export function writePackageJson(cwd: string, pkg: PackageJson): void {
-    const pkgPath = join(cwd, "package.json");
-    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+    writeFileSync(getPackageJsonPath(cwd), `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
 export function updatePackageJson(

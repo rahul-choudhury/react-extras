@@ -9,7 +9,47 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { updatePackageJson } from "../package-json.js";
+import {
+    getAllDependencies,
+    tryReadPackageJson,
+    updatePackageJson,
+} from "../package-json.js";
+
+describe("tryReadPackageJson", () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        tempDir = mkdtempSync(join(tmpdir(), "package-json-read-test-"));
+    });
+
+    afterEach(() => {
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("returns null when package.json does not exist", () => {
+        expect(tryReadPackageJson(tempDir)).toBeNull();
+    });
+
+    test("returns null when package.json is invalid", () => {
+        writeFileSync(join(tempDir, "package.json"), "{");
+
+        expect(tryReadPackageJson(tempDir)).toBeNull();
+    });
+});
+
+describe("getAllDependencies", () => {
+    test("merges dependencies and devDependencies", () => {
+        expect(
+            getAllDependencies({
+                dependencies: { react: "^19.0.0" },
+                devDependencies: { typescript: "^5.0.0" },
+            }),
+        ).toEqual({
+            react: "^19.0.0",
+            typescript: "^5.0.0",
+        });
+    });
+});
 
 describe("updatePackageJson", () => {
     let tempDir: string;

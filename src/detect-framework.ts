@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { getAllDependencies, tryReadPackageJson } from "./package-json.js";
 
 export type Framework = "nextjs" | "vite-tanstack-router";
 
@@ -22,24 +23,18 @@ export function detectFramework(cwd: string): FrameworkDetectionResult {
         }
     }
 
-    const pkgPath = join(cwd, "package.json");
-    if (existsSync(pkgPath)) {
-        try {
-            const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-            const allDeps = {
-                ...pkg.dependencies,
-                ...pkg.devDependencies,
-            };
+    const pkg = tryReadPackageJson(cwd);
+    if (pkg) {
+        const allDeps = getAllDependencies(pkg);
 
-            if (allDeps.next) {
-                return { framework: "nextjs", inferred: false };
-            }
+        if (allDeps.next) {
+            return { framework: "nextjs", inferred: false };
+        }
 
-            // Check for Vite + TanStack Router specifically
-            if (allDeps.vite && allDeps["@tanstack/react-router"]) {
-                return { framework: "vite-tanstack-router", inferred: false };
-            }
-        } catch {}
+        // Check for Vite + TanStack Router specifically
+        if (allDeps.vite && allDeps["@tanstack/react-router"]) {
+            return { framework: "vite-tanstack-router", inferred: false };
+        }
     }
 
     return { framework: "vite-tanstack-router", inferred: true };

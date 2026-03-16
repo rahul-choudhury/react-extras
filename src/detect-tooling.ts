@@ -1,5 +1,6 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { join } from "node:path";
+import { getAllDependencies, tryReadPackageJson } from "./package-json.js";
 
 export type Tooling = "biome" | "eslint-prettier";
 
@@ -20,24 +21,18 @@ export function detectTooling(cwd: string): ToolingDetectionResult {
         return { tooling: "biome", inferred: false };
     }
 
-    const pkgPath = join(cwd, "package.json");
-    if (existsSync(pkgPath)) {
-        try {
-            const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-            const allDeps = {
-                ...pkg.dependencies,
-                ...pkg.devDependencies,
-            };
+    const pkg = tryReadPackageJson(cwd);
+    if (pkg) {
+        const allDeps = getAllDependencies(pkg);
 
-            if (allDeps["@biomejs/biome"]) {
-                return { tooling: "biome", inferred: false };
-            }
+        if (allDeps["@biomejs/biome"]) {
+            return { tooling: "biome", inferred: false };
+        }
 
-            // Check for ESLint or Prettier specifically
-            if (allDeps.eslint || allDeps.prettier) {
-                return { tooling: "eslint-prettier", inferred: false };
-            }
-        } catch {}
+        // Check for ESLint or Prettier specifically
+        if (allDeps.eslint || allDeps.prettier) {
+            return { tooling: "eslint-prettier", inferred: false };
+        }
     }
 
     return { tooling: "eslint-prettier", inferred: true };
