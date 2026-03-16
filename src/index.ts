@@ -89,11 +89,11 @@ async function main() {
     const selectedGroups = await p.multiselect({
         message: "Select extras to add:",
         options: groups.map((group) => ({
-            value: group.label,
+            value: group.id,
             label: group.label,
             hint: group.hint,
         })),
-        initialValues: groups.map((group) => group.label),
+        initialValues: groups.map((group) => group.id),
         required: false,
     });
 
@@ -102,16 +102,13 @@ async function main() {
         process.exit(0);
     }
 
-    const selectedLabels = selectedGroups as string[];
-    if (selectedLabels.length === 0) {
+    const selectedIds = selectedGroups as Array<(typeof groups)[number]["id"]>;
+    if (selectedIds.length === 0) {
         p.cancel("No extras selected.");
         process.exit(0);
     }
 
-    const selected = groups.filter((g) => selectedLabels.includes(g.label));
-    const selectedGroupLabels = new Set(selected.map((group) => group.label));
-    const showNextStandaloneNote =
-        framework === "nextjs" && selectedGroupLabels.has("Deployment + CI/CD");
+    const selected = groups.filter((group) => selectedIds.includes(group.id));
     const allFiles = selected.flatMap((g) => g.files);
     const fileStatus = checkExistingFiles(cwd, allFiles);
     const existingFiles = fileStatus.filter((f) => f.exists);
@@ -205,28 +202,22 @@ async function main() {
 
     p.outro("Setup complete!");
 
-    const nextSteps: string[] = [];
-
-    if (showNextStandaloneNote) {
-        nextSteps.push(
-            `Add ${pc.cyan(`output: "standalone"`)} to your next.config ${pc.dim("(required for Docker)")}`,
-        );
-    }
-
-    nextSteps.push(
-        `Run ${pc.cyan(getSkillsInstallCommand(pm))} to give AI assistants like Claude Code project-aware context about shadcn/ui.`,
+    const immediateNextSteps = selected.flatMap((group) =>
+        group.nextSteps
+            .filter((step) => step.stage === "before-review")
+            .map((step) => step.text),
     );
-    nextSteps.push("Review the created files");
-
-    if (selectedGroupLabels.has("Deployment + CI/CD")) {
-        nextSteps.push(
-            "Update .github/workflows/deploy.yml with your settings",
-        );
-    }
-
-    if (selectedGroupLabels.has("Pre-commit Hook")) {
-        nextSteps.push("Make a commit to test the pre-commit hook");
-    }
+    const followUpNextSteps = selected.flatMap((group) =>
+        group.nextSteps
+            .filter((step) => step.stage !== "before-review")
+            .map((step) => step.text),
+    );
+    const nextSteps = [
+        ...immediateNextSteps,
+        `Run ${pc.cyan(getSkillsInstallCommand(pm))} to give AI assistants like Claude Code project-aware context about shadcn/ui.`,
+        "Review the created files",
+        ...followUpNextSteps,
+    ];
 
     p.log.message(`${pc.dim("Next steps:")}
   ${nextSteps

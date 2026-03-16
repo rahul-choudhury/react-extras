@@ -19,6 +19,19 @@ export interface GeneratorContext {
     framework: Framework;
 }
 
+export type TemplateGroupId =
+    | "deployment"
+    | "editor-setup"
+    | "pre-commit"
+    | "api-client";
+
+export type NextStepStage = "before-review" | "after-review";
+
+export interface NextStepDefinition {
+    text: string;
+    stage?: NextStepStage;
+}
+
 export type ContentResolver =
     | { type: "static"; templatePath: string }
     | { type: "dynamic"; generate: (ctx: GeneratorContext) => string };
@@ -35,16 +48,21 @@ export interface TemplateFileDefinition {
 }
 
 export interface TemplateGroup {
+    id: TemplateGroupId;
     label: string;
     files: TemplateFileDefinition[];
     packages?: string[];
     packageJson?:
         | PackageJsonMods
         | ((ctx: GeneratorContext) => PackageJsonMods);
+    nextSteps?:
+        | NextStepDefinition[]
+        | ((ctx: GeneratorContext) => NextStepDefinition[]);
 }
 
 export const TEMPLATE_GROUPS: TemplateGroup[] = [
     {
+        id: "deployment",
         label: "Deployment + CI/CD",
         files: [
             {
@@ -74,8 +92,22 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
                 typecheck: "tsc --noEmit",
             },
         }),
+        nextSteps: (ctx) => [
+            ...(ctx.framework === "nextjs"
+                ? [
+                      {
+                          text: 'Add output: "standalone" to your next.config (required for Docker)',
+                          stage: "before-review" as const,
+                      },
+                  ]
+                : []),
+            {
+                text: "Update .github/workflows/deploy.yml with your settings",
+            },
+        ],
     },
     {
+        id: "editor-setup",
         label: "Editor Setup",
         files: [
             {
@@ -97,6 +129,7 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         ],
     },
     {
+        id: "pre-commit",
         label: "Pre-commit Hook",
         files: [
             {
@@ -112,8 +145,10 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
             scripts: { prepare: "husky" },
             config: { "lint-staged": getLintStagedConfig(ctx.tooling) },
         }),
+        nextSteps: [{ text: "Make a commit to test the pre-commit hook" }],
     },
     {
+        id: "api-client",
         label: "API Client",
         files: [
             {

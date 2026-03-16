@@ -41,6 +41,11 @@ describe("resolveGroups", () => {
 
         expect(groups).toHaveLength(4);
         const labels = groups.map((g) => g.label);
+        const ids = groups.map((g) => g.id);
+        expect(ids).toContain("deployment");
+        expect(ids).toContain("editor-setup");
+        expect(ids).toContain("pre-commit");
+        expect(ids).toContain("api-client");
         expect(labels).toContain("Deployment + CI/CD");
         expect(labels).toContain("Editor Setup");
         expect(labels).toContain("Pre-commit Hook");
@@ -156,6 +161,32 @@ describe("resolveGroups", () => {
 
         if (!deploy) throw new Error("expected group");
         expect(deploy.hint).toBe("Dockerfile, .github/workflows/deploy.yml");
+    });
+
+    test("resolves group-specific next steps from metadata", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.id === "deployment");
+        const preCommit = groups.find((g) => g.id === "pre-commit");
+
+        if (!deploy || !preCommit) throw new Error("expected groups");
+        expect(deploy.nextSteps).toEqual([
+            {
+                text: 'Add output: "standalone" to your next.config (required for Docker)',
+                stage: "before-review",
+            },
+            {
+                text: "Update .github/workflows/deploy.yml with your settings",
+            },
+        ]);
+        expect(preCommit.nextSteps).toEqual([
+            { text: "Make a commit to test the pre-commit hook" },
+        ]);
     });
 
     test("groups with all files filtered out are excluded", () => {

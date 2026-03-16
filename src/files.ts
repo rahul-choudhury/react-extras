@@ -10,8 +10,10 @@ import { fileURLToPath } from "node:url";
 import {
     type ContentResolver,
     type GeneratorContext,
+    type NextStepDefinition,
     type PackageJsonMods,
     TEMPLATE_GROUPS,
+    type TemplateGroupId,
 } from "./templates.js";
 
 export type { GeneratorContext } from "./templates.js";
@@ -24,10 +26,12 @@ export interface ResolvedFile {
 }
 
 export interface ResolvedGroup {
+    id: TemplateGroupId;
     label: string;
     hint: string;
     files: ResolvedFile[];
     packages: string[];
+    nextSteps: NextStepDefinition[];
     packageJson?:
         | PackageJsonMods
         | ((ctx: GeneratorContext) => PackageJsonMods);
@@ -58,12 +62,18 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
         if (files.length === 0) continue;
 
         const hint = files.map((f) => f.targetPath).join(", ");
+        const nextSteps =
+            typeof group.nextSteps === "function"
+                ? group.nextSteps(ctx)
+                : (group.nextSteps ?? []);
 
         resolved.push({
+            id: group.id,
             label: group.label,
             hint,
             files,
             packages: group.packages ?? [],
+            nextSteps,
             packageJson: group.packageJson,
         });
     }
