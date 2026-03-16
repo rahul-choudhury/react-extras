@@ -1,6 +1,5 @@
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import {
     type GeneratorContext,
     type NextStepDefinition,
@@ -10,8 +9,6 @@ import {
 } from "./templates.js";
 
 export type { GeneratorContext } from "./templates.js";
-
-const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export interface ResolvedFile {
     targetPath: string;
@@ -108,14 +105,7 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
     return resolved;
 }
 
-export function getTemplatesDir(): string {
-    return join(__dirname, "..", "templates");
-}
-
-export function checkExistingFiles(
-    cwd: string,
-    files: ResolvedFile[],
-): FileStatus[] {
+function checkExistingFiles(cwd: string, files: ResolvedFile[]): FileStatus[] {
     return files.map((file) => ({
         file,
         exists: existsSync(join(cwd, file.targetPath)),
@@ -139,7 +129,7 @@ export function copyFile(
     }
 }
 
-export function getRequiredPackages(groups: ResolvedGroup[]): string[] {
+function getRequiredPackages(groups: ResolvedGroup[]): string[] {
     const deps = new Set<string>();
     for (const group of groups) {
         for (const pkg of group.packages) {
@@ -149,9 +139,7 @@ export function getRequiredPackages(groups: ResolvedGroup[]): string[] {
     return [...deps];
 }
 
-export function getPackageJsonMods(
-    groups: ResolvedGroup[],
-): ResolvedPackageJsonMods {
+function getPackageJsonMods(groups: ResolvedGroup[]): ResolvedPackageJsonMods {
     const scripts: Record<string, string> = {};
     const config: Record<string, unknown> = {};
 

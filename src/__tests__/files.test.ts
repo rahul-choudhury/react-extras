@@ -11,12 +11,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
     buildSetupPlan,
-    checkExistingFiles,
     copyFile,
     type GeneratorContext,
-    getPackageJsonMods,
-    getRequiredPackages,
-    getTemplatesDir,
     resolveGroups,
 } from "../files.js";
 
@@ -221,216 +217,6 @@ describe("resolveGroups", () => {
     });
 });
 
-describe("getTemplatesDir", () => {
-    test("returns path ending with templates", () => {
-        const dir = getTemplatesDir();
-        expect(dir.endsWith("templates")).toBe(true);
-    });
-});
-
-describe("checkExistingFiles", () => {
-    let tempDir: string;
-
-    beforeEach(() => {
-        tempDir = mkdtempSync(join(tmpdir(), "files-test-"));
-    });
-
-    afterEach(() => {
-        rmSync(tempDir, { recursive: true, force: true });
-    });
-
-    test("marks existing files correctly", () => {
-        writeFileSync(join(tempDir, "Dockerfile"), "");
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
-        if (!deploy) throw new Error("expected group");
-        const status = checkExistingFiles(tempDir, deploy.files);
-
-        const dockerfile = status.find(
-            (s) => s.file.targetPath === "Dockerfile",
-        );
-        const deployYml = status.find(
-            (s) => s.file.targetPath === ".github/workflows/deploy.yml",
-        );
-
-        expect(dockerfile?.exists).toBe(true);
-        expect(deployYml?.exists).toBe(false);
-    });
-
-    test("handles nested paths", () => {
-        mkdirSync(join(tempDir, ".github", "workflows"), { recursive: true });
-        writeFileSync(join(tempDir, ".github", "workflows", "deploy.yml"), "");
-
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deploy = groups.find((g) => g.label === "Deployment + CI/CD");
-        if (!deploy) throw new Error("expected group");
-        const status = checkExistingFiles(tempDir, deploy.files);
-
-        const workflow = status.find(
-            (s) => s.file.targetPath === ".github/workflows/deploy.yml",
-        );
-        expect(workflow?.exists).toBe(true);
-    });
-});
-
-describe("getRequiredPackages", () => {
-    let tempDir: string;
-
-    beforeEach(() => {
-        tempDir = mkdtempSync(join(tmpdir(), "deps-test-"));
-    });
-
-    afterEach(() => {
-        rmSync(tempDir, { recursive: true, force: true });
-    });
-
-    test("returns husky and lint-staged from Pre-commit Hook group", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const preCommit = groups.filter((g) => g.label === "Pre-commit Hook");
-
-        const deps = getRequiredPackages(preCommit);
-        expect(deps).toContain("husky");
-        expect(deps).toContain("lint-staged");
-    });
-
-    test("returns empty array when Pre-commit Hook is not selected", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const withoutPreCommit = groups.filter(
-            (g) => g.label !== "Pre-commit Hook",
-        );
-
-        const deps = getRequiredPackages(withoutPreCommit);
-        expect(deps).toEqual([]);
-    });
-
-    test("deduplicates packages", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deps = getRequiredPackages(groups);
-
-        const uniqueDeps = [...new Set(deps)];
-        expect(deps.length).toBe(uniqueDeps.length);
-    });
-});
-
-describe("getPackageJsonMods", () => {
-    let tempDir: string;
-
-    beforeEach(() => {
-        tempDir = mkdtempSync(join(tmpdir(), "mods-test-"));
-    });
-
-    afterEach(() => {
-        rmSync(tempDir, { recursive: true, force: true });
-    });
-
-    test("collects scripts from Deployment + CI/CD group (check, typecheck)", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
-
-        const mods = getPackageJsonMods(deploy);
-        expect(mods.scripts.check).toBe("biome check .");
-        expect(mods.scripts.typecheck).toBe("tsc --noEmit");
-    });
-
-    test("collects scripts and config from Pre-commit Hook group (prepare, lint-staged)", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const preCommit = groups.filter((g) => g.label === "Pre-commit Hook");
-
-        const mods = getPackageJsonMods(preCommit);
-        expect(mods.scripts.prepare).toBe("husky");
-        expect(mods.config["lint-staged"]).toEqual({
-            "*": "biome check --write --no-errors-on-unmatched",
-        });
-    });
-
-    test("uses biome check script when tooling is biome", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
-
-        const mods = getPackageJsonMods(deploy);
-        expect(mods.scripts.check).toBe("biome check .");
-    });
-
-    test("uses eslint+prettier check script when tooling is eslint-prettier", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "eslint-prettier",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
-
-        const mods = getPackageJsonMods(deploy);
-        expect(mods.scripts.check).toBe("eslint . && prettier --check .");
-    });
-
-    test("returns empty mods for groups without packageJson (Editor Setup, API Client)", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const noMods = groups.filter(
-            (g) => g.label === "Editor Setup" || g.label === "API Client",
-        );
-
-        const mods = getPackageJsonMods(noMods);
-        expect(mods.scripts).toEqual({});
-        expect(mods.config).toEqual({});
-    });
-});
-
 describe("buildSetupPlan", () => {
     let tempDir: string;
 
@@ -489,6 +275,31 @@ describe("buildSetupPlan", () => {
         ]);
     });
 
+    test("tracks existing nested files in fileStatus and existingFiles", () => {
+        mkdirSync(join(tempDir, ".github", "workflows"), { recursive: true });
+        writeFileSync(join(tempDir, ".github", "workflows", "deploy.yml"), "");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx).filter(
+            (group) => group.id === "deployment",
+        );
+
+        const plan = buildSetupPlan({ cwd: tempDir, groups });
+
+        const workflow = plan.fileStatus.find(
+            (status) =>
+                status.file.targetPath === ".github/workflows/deploy.yml",
+        );
+        expect(workflow?.exists).toBe(true);
+        expect(plan.existingFiles.map(({ file }) => file.targetPath)).toEqual([
+            ".github/workflows/deploy.yml",
+        ]);
+    });
+
     test("omits skipped files from filesToApply without changing the rest of the plan", () => {
         const ctx: GeneratorContext = {
             cwd: tempDir,
@@ -513,6 +324,45 @@ describe("buildSetupPlan", () => {
         expect(plan.immediateNextSteps).toEqual([
             'Add output: "standalone" to your next.config (required for Docker)',
         ]);
+    });
+
+    test("uses empty deps and package json mods for groups without setup side effects", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx).filter(
+            (group) => group.id === "editor-setup" || group.id === "api-client",
+        );
+
+        const plan = buildSetupPlan({ cwd: tempDir, groups });
+
+        expect(plan.requiredDeps).toEqual([]);
+        expect(plan.packageJsonMods).toEqual({
+            scripts: {},
+            config: {},
+        });
+    });
+
+    test("uses tooling-specific package json mods from resolved groups", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "eslint-prettier",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx).filter(
+            (group) => group.id === "deployment",
+        );
+
+        const plan = buildSetupPlan({ cwd: tempDir, groups });
+
+        expect(plan.packageJsonMods.scripts.check).toBe(
+            "eslint . && prettier --check .",
+        );
+        expect(plan.requiredDeps).toEqual([]);
     });
 });
 
