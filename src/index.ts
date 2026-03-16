@@ -13,7 +13,7 @@ import { detectFramework, getFrameworkLabel } from "./detect-framework.js";
 import {
     detectPackageManager,
     getInstallCommand,
-    type PackageManager,
+    getSkillsInstallCommand,
 } from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
 import {
@@ -23,19 +23,6 @@ import {
     resolveGroups,
 } from "./files.js";
 import { updatePackageJson } from "./package-json.js";
-
-function getSkillsInstallCommand(pm: PackageManager): string {
-    switch (pm) {
-        case "pnpm":
-            return "pnpm dlx skills add shadcn/ui";
-        case "yarn":
-            return "yarn skills add shadcn/ui";
-        case "bun":
-            return "bunx --bun skills add shadcn/ui";
-        default:
-            return "npx skills add shadcn/ui";
-    }
-}
 
 function cancelAndExit(message: string, exitCode = 0): never {
     p.cancel(message);

@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { detectPackageManager, getPMConfig } from "../detect-pm.js";
+import {
+    detectPackageManager,
+    getInstallCommand,
+    getPMConfig,
+    getSkillsInstallCommand,
+} from "../detect-pm.js";
 
 describe("detectPackageManager", () => {
     let tempDir: string;
@@ -93,5 +98,25 @@ describe("getPMConfig", () => {
         const config = getPMConfig("npm", { cwd: tempDir });
         expect(config.dockerBase).toBe(`node:${expectedMajor}-alpine`);
         expect(config.setupAction).toContain(`node-version: ${expectedMajor}`);
+    });
+});
+
+describe("package manager metadata helpers", () => {
+    test("returns install command from shared metadata", () => {
+        expect(getInstallCommand("pnpm", ["husky", "lint-staged"])).toBe(
+            "pnpm add -D husky lint-staged",
+        );
+        expect(getInstallCommand("npm", ["husky"])).toBe(
+            "npm install -D husky",
+        );
+    });
+
+    test("returns skills install command from shared metadata", () => {
+        expect(getSkillsInstallCommand("bun")).toBe(
+            "bunx --bun skills add shadcn/ui",
+        );
+        expect(getSkillsInstallCommand("yarn")).toBe(
+            "yarn skills add shadcn/ui",
+        );
     });
 });
