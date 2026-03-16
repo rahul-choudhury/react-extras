@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+    buildSetupPlan,
     checkExistingFiles,
     copyFile,
     type GeneratorContext,
@@ -427,6 +428,92 @@ describe("getPackageJsonMods", () => {
         const mods = getPackageJsonMods(noMods, ctx);
         expect(mods.scripts).toEqual({});
         expect(mods.config).toEqual({});
+    });
+});
+
+describe("buildSetupPlan", () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        tempDir = mkdtempSync(join(tmpdir(), "setup-plan-test-"));
+    });
+
+    afterEach(() => {
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("collects files, deps, package.json mods, and next steps together", () => {
+        writeFileSync(join(tempDir, "Dockerfile"), "");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx).filter(
+            (group) => group.id === "deployment" || group.id === "pre-commit",
+        );
+
+        const plan = buildSetupPlan({ cwd: tempDir, ctx, groups });
+
+        expect(plan.fileStatus.map(({ file }) => file.targetPath)).toEqual([
+            "Dockerfile",
+            ".github/workflows/deploy.yml",
+            ".husky/pre-commit",
+        ]);
+        expect(plan.existingFiles.map(({ file }) => file.targetPath)).toEqual([
+            "Dockerfile",
+        ]);
+        expect(plan.filesToApply.map((file) => file.targetPath)).toEqual([
+            "Dockerfile",
+            ".github/workflows/deploy.yml",
+            ".husky/pre-commit",
+        ]);
+        expect(plan.requiredDeps).toEqual(["husky", "lint-staged"]);
+        expect(plan.packageJsonMods.scripts).toEqual({
+            check: "biome check .",
+            typecheck: "tsc --noEmit",
+            prepare: "husky",
+        });
+        expect(plan.packageJsonMods.config).toEqual({
+            "lint-staged": {
+                "*": "biome check --write --no-errors-on-unmatched",
+            },
+        });
+        expect(plan.immediateNextSteps).toEqual([
+            'Add output: "standalone" to your next.config (required for Docker)',
+        ]);
+        expect(plan.followUpNextSteps).toEqual([
+            "Update .github/workflows/deploy.yml with your settings",
+            "Make a commit to test the pre-commit hook",
+        ]);
+    });
+
+    test("omits skipped files from filesToApply without changing the rest of the plan", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx).filter(
+            (group) => group.id === "deployment",
+        );
+
+        const plan = buildSetupPlan({
+            cwd: tempDir,
+            ctx,
+            groups,
+            filesToSkip: ["Dockerfile"],
+        });
+
+        expect(plan.filesToApply.map((file) => file.targetPath)).toEqual([
+            ".github/workflows/deploy.yml",
+        ]);
+        expect(plan.requiredDeps).toEqual([]);
+        expect(plan.immediateNextSteps).toEqual([
+            'Add output: "standalone" to your next.config (required for Docker)',
+        ]);
     });
 });
 

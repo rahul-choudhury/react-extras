@@ -17,11 +17,9 @@ import {
 } from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
 import {
-    checkExistingFiles,
+    buildSetupPlan,
     copyFile,
     type GeneratorContext,
-    getPackageJsonMods,
-    getRequiredPackages,
     resolveGroups,
 } from "./files.js";
 import { updatePackageJson } from "./package-json.js";
@@ -109,23 +107,21 @@ async function main() {
     }
 
     const selected = groups.filter((group) => selectedIds.includes(group.id));
-    const allFiles = selected.flatMap((g) => g.files);
-    const fileStatus = checkExistingFiles(cwd, allFiles);
-    const existingFiles = fileStatus.filter((f) => f.exists);
+    let plan = buildSetupPlan({ cwd, ctx, groups: selected });
 
-    if (allFiles.length > 0) {
+    if (plan.fileStatus.length > 0) {
         p.log.message(pc.dim("Files to create:"));
-        for (const { file, exists } of fileStatus) {
+        for (const { file, exists } of plan.fileStatus) {
             const status = exists ? pc.yellow(" (exists, will overwrite)") : "";
             p.log.message(`  ${file.targetPath}${status}`);
         }
     }
 
     let filesToSkip: string[] = [];
-    if (existingFiles.length > 0) {
+    if (plan.existingFiles.length > 0) {
         const overwriteChoice = await p.multiselect({
             message: "Some files already exist. Select files to overwrite:",
-            options: existingFiles.map(({ file }) => ({
+            options: plan.existingFiles.map(({ file }) => ({
                 value: file.targetPath,
                 label: file.targetPath,
             })),
@@ -138,19 +134,15 @@ async function main() {
         }
 
         const filesToOverwrite = overwriteChoice as string[];
-        filesToSkip = existingFiles
+        filesToSkip = plan.existingFiles
             .filter(({ file }) => !filesToOverwrite.includes(file.targetPath))
             .map(({ file }) => file.targetPath);
+        plan = buildSetupPlan({ cwd, ctx, groups: selected, filesToSkip });
     }
 
-    const filesToApply = allFiles.filter(
-        (f) => !filesToSkip.includes(f.targetPath),
-    );
-    const requiredDeps = getRequiredPackages(selected);
-
-    if (requiredDeps.length > 0) {
+    if (plan.requiredDeps.length > 0) {
         p.log.message(pc.dim("Dependencies to install:"));
-        for (const dep of requiredDeps) {
+        for (const dep of plan.requiredDeps) {
             p.log.message(`  ${pc.cyan(dep)}`);
         }
     }
@@ -166,20 +158,21 @@ async function main() {
 
     const s = p.spinner();
 
-    if (filesToApply.length > 0) {
+    if (plan.filesToApply.length > 0) {
         s.start("Copying template files...");
 
-        for (const file of filesToApply) {
+        for (const file of plan.filesToApply) {
             copyFile(cwd, file, ctx);
         }
 
         s.stop("Template files copied");
     }
 
-    const mods = getPackageJsonMods(selected, ctx);
-
     s.start("Updating package.json...");
-    const { added } = updatePackageJson({ cwd, mods });
+    const { added } = updatePackageJson({
+        cwd,
+        mods: plan.packageJsonMods,
+    });
 
     if (added.length > 0) {
         s.stop(`Updated package.json: added ${added.join(", ")}`);
@@ -187,9 +180,9 @@ async function main() {
         s.stop("package.json already configured");
     }
 
-    if (requiredDeps.length > 0) {
-        s.start(`Installing ${requiredDeps.join(", ")}...`);
-        const installCmd = getInstallCommand(pm, requiredDeps);
+    if (plan.requiredDeps.length > 0) {
+        s.start(`Installing ${plan.requiredDeps.join(", ")}...`);
+        const installCmd = getInstallCommand(pm, plan.requiredDeps);
 
         try {
             await execAsync(installCmd, { cwd });
@@ -202,21 +195,11 @@ async function main() {
 
     p.outro("Setup complete!");
 
-    const immediateNextSteps = selected.flatMap((group) =>
-        group.nextSteps
-            .filter((step) => step.stage === "before-review")
-            .map((step) => step.text),
-    );
-    const followUpNextSteps = selected.flatMap((group) =>
-        group.nextSteps
-            .filter((step) => step.stage !== "before-review")
-            .map((step) => step.text),
-    );
     const nextSteps = [
-        ...immediateNextSteps,
+        ...plan.immediateNextSteps,
         `Run ${pc.cyan(getSkillsInstallCommand(pm))} to give AI assistants like Claude Code project-aware context about shadcn/ui.`,
         "Review the created files",
-        ...followUpNextSteps,
+        ...plan.followUpNextSteps,
     ];
 
     p.log.message(`${pc.dim("Next steps:")}

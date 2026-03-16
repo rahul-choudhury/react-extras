@@ -36,6 +36,21 @@ export interface ResolvedPackageJsonMods {
     config: Record<string, unknown>;
 }
 
+export interface FileStatus {
+    file: ResolvedFile;
+    exists: boolean;
+}
+
+export interface SetupPlan {
+    fileStatus: FileStatus[];
+    existingFiles: FileStatus[];
+    filesToApply: ResolvedFile[];
+    requiredDeps: string[];
+    packageJsonMods: ResolvedPackageJsonMods;
+    immediateNextSteps: string[];
+    followUpNextSteps: string[];
+}
+
 export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
     const resolved: ResolvedGroup[] = [];
 
@@ -86,7 +101,7 @@ export function getTemplatesDir(): string {
 export function checkExistingFiles(
     cwd: string,
     files: ResolvedFile[],
-): { file: ResolvedFile; exists: boolean }[] {
+): FileStatus[] {
     return files.map((file) => ({
         file,
         exists: existsSync(join(cwd, file.targetPath)),
@@ -153,4 +168,39 @@ export function getPackageJsonMods(
     }
 
     return { scripts, config };
+}
+
+export interface BuildSetupPlanOptions {
+    cwd: string;
+    ctx: GeneratorContext;
+    groups: ResolvedGroup[];
+    filesToSkip?: string[];
+}
+
+export function buildSetupPlan(options: BuildSetupPlanOptions): SetupPlan {
+    const { cwd, ctx, groups, filesToSkip = [] } = options;
+    const allFiles = groups.flatMap((group) => group.files);
+    const fileStatus = checkExistingFiles(cwd, allFiles);
+    const existingFiles = fileStatus.filter((status) => status.exists);
+    const skippedFiles = new Set(filesToSkip);
+
+    return {
+        fileStatus,
+        existingFiles,
+        filesToApply: allFiles.filter(
+            (file) => !skippedFiles.has(file.targetPath),
+        ),
+        requiredDeps: getRequiredPackages(groups),
+        packageJsonMods: getPackageJsonMods(groups, ctx),
+        immediateNextSteps: groups.flatMap((group) =>
+            group.nextSteps
+                .filter((step) => step.stage === "before-review")
+                .map((step) => step.text),
+        ),
+        followUpNextSteps: groups.flatMap((group) =>
+            group.nextSteps
+                .filter((step) => step.stage !== "before-review")
+                .map((step) => step.text),
+        ),
+    };
 }
