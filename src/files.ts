@@ -12,7 +12,7 @@ export type { GeneratorContext } from "./templates.js";
 
 export interface ResolvedFile {
     targetPath: string;
-    render: (ctx: GeneratorContext) => string;
+    content: string;
     executable: boolean;
 }
 
@@ -78,7 +78,7 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
 
             files.push({
                 targetPath,
-                render: def.render,
+                content: def.render(ctx),
                 executable: def.executable ?? false,
             });
         }
@@ -112,15 +112,11 @@ function checkExistingFiles(cwd: string, files: ResolvedFile[]): FileStatus[] {
     }));
 }
 
-export function copyFile(
-    cwd: string,
-    file: ResolvedFile,
-    ctx: GeneratorContext,
-): void {
+export function copyFile(cwd: string, file: ResolvedFile): void {
     const targetPath = join(cwd, file.targetPath);
     mkdirSync(dirname(targetPath), { recursive: true });
 
-    writeFileSync(targetPath, file.render(ctx));
+    writeFileSync(targetPath, file.content);
 
     if (file.executable) {
         try {

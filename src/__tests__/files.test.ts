@@ -186,6 +186,23 @@ describe("resolveGroups", () => {
         ]);
     });
 
+    test("resolves concrete file content during group resolution", () => {
+        writeFileSync(join(tempDir, "bun.lockb"), "");
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "bun",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const deploy = groups.find((g) => g.id === "deployment");
+        const dockerfile = deploy?.files.find(
+            (file) => file.targetPath === "Dockerfile",
+        );
+
+        expect(dockerfile?.content).toContain("bun.lockb");
+    });
+
     test("marks executable files from template metadata", () => {
         const ctx: GeneratorContext = {
             cwd: tempDir,
@@ -393,7 +410,7 @@ describe("copyFile", () => {
         );
 
         if (!dockerfile) throw new Error("expected file");
-        copyFile(tempDir, dockerfile, ctx);
+        copyFile(tempDir, dockerfile);
 
         const content = readFileSync(join(tempDir, "Dockerfile"), "utf-8");
         expect(content).toContain("bun.lockb");
@@ -414,7 +431,7 @@ describe("copyFile", () => {
         );
 
         if (!hook) throw new Error("expected file");
-        copyFile(tempDir, hook, ctx);
+        copyFile(tempDir, hook);
 
         const hookPath = join(tempDir, ".husky", "pre-commit");
         const content = readFileSync(hookPath, "utf-8");

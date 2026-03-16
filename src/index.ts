@@ -16,12 +16,7 @@ import {
     getSkillsInstallCommand,
 } from "./detect-pm.js";
 import { detectTooling, getToolingLabel } from "./detect-tooling.js";
-import {
-    buildSetupPlan,
-    copyFile,
-    type GeneratorContext,
-    resolveGroups,
-} from "./files.js";
+import { buildSetupPlan, copyFile, resolveGroups } from "./files.js";
 import { updatePackageJson } from "./package-json.js";
 
 function cancelAndExit(message: string, exitCode = 0): never {
@@ -102,8 +97,7 @@ async function main() {
         detectedMessage: `Detected tooling: ${pc.cyan(getToolingLabel(tooling))}`,
     });
 
-    const ctx: GeneratorContext = { cwd, pm, tooling, framework };
-    const groups = resolveGroups(ctx);
+    const groups = resolveGroups({ cwd, pm, tooling, framework });
 
     const selectedIds = await multiselectOrExit<(typeof groups)[number]["id"]>({
         message: "Select extras to add:",
@@ -164,7 +158,7 @@ async function main() {
         s.start("Copying template files...");
 
         for (const file of plan.filesToApply) {
-            copyFile(cwd, file, ctx);
+            copyFile(cwd, file);
         }
 
         s.stop("Template files copied");
