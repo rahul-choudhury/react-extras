@@ -40,6 +40,10 @@ function renderTemplate(templatePath: string) {
     return () => readFileSync(join(TEMPLATES_DIR, templatePath), "utf-8");
 }
 
+function getLibDir(ctx: GeneratorContext): string {
+    return existsSync(join(ctx.cwd, "src")) ? "src/lib" : "lib";
+}
+
 export interface PackageJsonMods {
     scripts?: Record<string, string>;
     config?: Record<string, unknown>;
@@ -146,17 +150,11 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         label: "API Client",
         files: [
             {
-                targetPath: (ctx) =>
-                    existsSync(join(ctx.cwd, "src"))
-                        ? "src/lib/api-client.ts"
-                        : "lib/api-client.ts",
+                targetPath: (ctx) => join(getLibDir(ctx), "api-client.ts"),
                 render: renderTemplate("lib/api-client.ts"),
             },
             {
-                targetPath: (ctx) =>
-                    existsSync(join(ctx.cwd, "src"))
-                        ? "src/lib/config.ts"
-                        : "lib/config.ts",
+                targetPath: (ctx) => join(getLibDir(ctx), "config.ts"),
                 render: (ctx) => generateConfigTs(ctx.framework),
             },
         ],
