@@ -134,7 +134,7 @@ async function main() {
     }
 
     const selected = groups.filter((group) => selectedIds.includes(group.id));
-    let plan = buildSetupPlan({ cwd, ctx, groups: selected });
+    let plan = buildSetupPlan({ cwd, groups: selected });
 
     if (plan.fileStatus.length > 0) {
         p.log.message(pc.dim("Files to create:"));
@@ -157,7 +157,7 @@ async function main() {
         filesToSkip = plan.existingFiles
             .filter(({ file }) => !filesToOverwrite.includes(file.targetPath))
             .map(({ file }) => file.targetPath);
-        plan = buildSetupPlan({ cwd, ctx, groups: selected, filesToSkip });
+        plan = buildSetupPlan({ cwd, groups: selected, filesToSkip });
     }
 
     if (plan.requiredDeps.length > 0) {

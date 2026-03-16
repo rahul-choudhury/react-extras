@@ -363,7 +363,7 @@ describe("getPackageJsonMods", () => {
         const groups = resolveGroups(ctx);
         const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
-        const mods = getPackageJsonMods(deploy, ctx);
+        const mods = getPackageJsonMods(deploy);
         expect(mods.scripts.check).toBe("biome check .");
         expect(mods.scripts.typecheck).toBe("tsc --noEmit");
     });
@@ -378,7 +378,7 @@ describe("getPackageJsonMods", () => {
         const groups = resolveGroups(ctx);
         const preCommit = groups.filter((g) => g.label === "Pre-commit Hook");
 
-        const mods = getPackageJsonMods(preCommit, ctx);
+        const mods = getPackageJsonMods(preCommit);
         expect(mods.scripts.prepare).toBe("husky");
         expect(mods.config["lint-staged"]).toEqual({
             "*": "biome check --write --no-errors-on-unmatched",
@@ -395,7 +395,7 @@ describe("getPackageJsonMods", () => {
         const groups = resolveGroups(ctx);
         const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
-        const mods = getPackageJsonMods(deploy, ctx);
+        const mods = getPackageJsonMods(deploy);
         expect(mods.scripts.check).toBe("biome check .");
     });
 
@@ -409,7 +409,7 @@ describe("getPackageJsonMods", () => {
         const groups = resolveGroups(ctx);
         const deploy = groups.filter((g) => g.label === "Deployment + CI/CD");
 
-        const mods = getPackageJsonMods(deploy, ctx);
+        const mods = getPackageJsonMods(deploy);
         expect(mods.scripts.check).toBe("eslint . && prettier --check .");
     });
 
@@ -425,7 +425,7 @@ describe("getPackageJsonMods", () => {
             (g) => g.label === "Editor Setup" || g.label === "API Client",
         );
 
-        const mods = getPackageJsonMods(noMods, ctx);
+        const mods = getPackageJsonMods(noMods);
         expect(mods.scripts).toEqual({});
         expect(mods.config).toEqual({});
     });
@@ -454,7 +454,7 @@ describe("buildSetupPlan", () => {
             (group) => group.id === "deployment" || group.id === "pre-commit",
         );
 
-        const plan = buildSetupPlan({ cwd: tempDir, ctx, groups });
+        const plan = buildSetupPlan({ cwd: tempDir, groups });
 
         expect(plan.fileStatus.map(({ file }) => file.targetPath)).toEqual([
             "Dockerfile",
@@ -502,7 +502,6 @@ describe("buildSetupPlan", () => {
 
         const plan = buildSetupPlan({
             cwd: tempDir,
-            ctx,
             groups,
             filesToSkip: ["Dockerfile"],
         });

@@ -26,9 +26,7 @@ export interface ResolvedGroup {
     files: ResolvedFile[];
     packages: string[];
     nextSteps: NextStepDefinition[];
-    packageJson?:
-        | PackageJsonMods
-        | ((ctx: GeneratorContext) => PackageJsonMods);
+    packageJsonMods: ResolvedPackageJsonMods;
 }
 
 export interface ResolvedPackageJsonMods {
@@ -49,6 +47,22 @@ export interface SetupPlan {
     packageJsonMods: ResolvedPackageJsonMods;
     immediateNextSteps: string[];
     followUpNextSteps: string[];
+}
+
+function resolvePackageJsonMods(
+    packageJson:
+        | PackageJsonMods
+        | ((ctx: GeneratorContext) => PackageJsonMods)
+        | undefined,
+    ctx: GeneratorContext,
+): ResolvedPackageJsonMods {
+    const mods =
+        typeof packageJson === "function" ? packageJson(ctx) : packageJson;
+
+    return {
+        scripts: { ...(mods?.scripts ?? {}) },
+        config: { ...(mods?.config ?? {}) },
+    };
 }
 
 export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
@@ -87,7 +101,7 @@ export function resolveGroups(ctx: GeneratorContext): ResolvedGroup[] {
             files,
             packages: group.packages ?? [],
             nextSteps,
-            packageJson: group.packageJson,
+            packageJsonMods: resolvePackageJsonMods(group.packageJson, ctx),
         });
     }
 
@@ -137,32 +151,24 @@ export function getRequiredPackages(groups: ResolvedGroup[]): string[] {
 
 export function getPackageJsonMods(
     groups: ResolvedGroup[],
-    ctx: GeneratorContext,
 ): ResolvedPackageJsonMods {
     const scripts: Record<string, string> = {};
     const config: Record<string, unknown> = {};
 
     for (const group of groups) {
-        if (!group.packageJson) continue;
-
-        const mods =
-            typeof group.packageJson === "function"
-                ? group.packageJson(ctx)
-                : group.packageJson;
-
-        if (mods.scripts) {
-            for (const [key, value] of Object.entries(mods.scripts)) {
-                if (!(key in scripts)) {
-                    scripts[key] = value;
-                }
+        for (const [key, value] of Object.entries(
+            group.packageJsonMods.scripts,
+        )) {
+            if (!(key in scripts)) {
+                scripts[key] = value;
             }
         }
 
-        if (mods.config) {
-            for (const [key, value] of Object.entries(mods.config)) {
-                if (!(key in config)) {
-                    config[key] = value;
-                }
+        for (const [key, value] of Object.entries(
+            group.packageJsonMods.config,
+        )) {
+            if (!(key in config)) {
+                config[key] = value;
             }
         }
     }
@@ -172,13 +178,12 @@ export function getPackageJsonMods(
 
 export interface BuildSetupPlanOptions {
     cwd: string;
-    ctx: GeneratorContext;
     groups: ResolvedGroup[];
     filesToSkip?: string[];
 }
 
 export function buildSetupPlan(options: BuildSetupPlanOptions): SetupPlan {
-    const { cwd, ctx, groups, filesToSkip = [] } = options;
+    const { cwd, groups, filesToSkip = [] } = options;
     const allFiles = groups.flatMap((group) => group.files);
     const fileStatus = checkExistingFiles(cwd, allFiles);
     const existingFiles = fileStatus.filter((status) => status.exists);
@@ -191,7 +196,7 @@ export function buildSetupPlan(options: BuildSetupPlanOptions): SetupPlan {
             (file) => !skippedFiles.has(file.targetPath),
         ),
         requiredDeps: getRequiredPackages(groups),
-        packageJsonMods: getPackageJsonMods(groups, ctx),
+        packageJsonMods: getPackageJsonMods(groups),
         immediateNextSteps: groups.flatMap((group) =>
             group.nextSteps
                 .filter((step) => step.stage === "before-review")
