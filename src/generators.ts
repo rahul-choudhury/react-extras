@@ -62,10 +62,9 @@ export function generateDockerfile(
     framework: Framework,
     cwd: string,
 ): string {
-    if (framework === "nextjs") {
-        return generateNextjsDockerfile(pm, cwd);
-    }
-    return generateViteDockerfile(pm, cwd);
+    return framework === "nextjs"
+        ? generateNextjsDockerfile(pm, cwd)
+        : generateViteDockerfile(pm, cwd);
 }
 
 function generateViteDockerfile(pm: PackageManager, cwd: string): string {
@@ -95,27 +94,22 @@ CMD ["nginx", "-g", "daemon off;"]
 
 function generateNextjsDockerfile(pm: PackageManager, cwd: string): string {
     const config = getPMConfig(pm, { cwd });
-
-    const depsSetup = "";
-    const depsCopy = `COPY package.json ${config.lockfile} ./`;
-    const depsInstall = `RUN ${config.frozenInstall}`;
-    const builderSetup =
+    const corepackEnableLine =
         pm === "pnpm" || pm === "yarn" ? `RUN corepack enable ${pm}\n` : "";
-    const builderRun = `RUN ${config.run} build`;
 
     return `FROM ${config.dockerBase} AS base
 
 FROM base AS deps
 WORKDIR /app
-${depsSetup}${depsCopy}
-${depsInstall}
+COPY package.json ${config.lockfile} ./
+RUN ${config.frozenInstall}
 
 FROM base AS builder
 WORKDIR /app
-${builderSetup}COPY --from=deps /app/node_modules ./node_modules
+${corepackEnableLine}COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-${builderRun}
+RUN ${config.run} build
 
 FROM base AS runner
 WORKDIR /app
