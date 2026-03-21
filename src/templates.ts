@@ -114,17 +114,8 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
         label: "Editor Setup",
         files: [
             {
-                targetPath: ".editorconfig",
-                render: renderTemplate("editorconfig"),
-            },
-            {
                 targetPath: ".vscode/extensions.json",
                 render: (ctx) => generateExtensionsJson(ctx.tooling),
-            },
-            {
-                targetPath: ".zed/settings.json",
-                render: renderTemplate("zed-settings.json"),
-                when: (ctx) => ctx.tooling === "biome",
             },
         ],
     },

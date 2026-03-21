@@ -136,16 +136,11 @@ ${config.runX} lint-staged
 export function generateExtensionsJson(tooling: Tooling): string {
     const extensions =
         tooling === "biome"
-            ? [
-                  "bradlc.vscode-tailwindcss",
-                  "biomejs.biome",
-                  "EditorConfig.EditorConfig",
-              ]
+            ? ["bradlc.vscode-tailwindcss", "biomejs.biome"]
             : [
                   "bradlc.vscode-tailwindcss",
                   "dbaeumer.vscode-eslint",
                   "esbenp.prettier-vscode",
-                  "EditorConfig.EditorConfig",
               ];
 
     return `${JSON.stringify({ recommendations: extensions }, null, 2)}\n`;

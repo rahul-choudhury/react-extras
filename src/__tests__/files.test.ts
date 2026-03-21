@@ -83,36 +83,6 @@ describe("resolveGroups", () => {
         expect(paths).toContain("nginx.conf");
     });
 
-    test("Editor Setup includes .zed/settings.json when tooling is biome", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const editor = groups.find((g) => g.label === "Editor Setup");
-
-        if (!editor) throw new Error("expected group");
-        const paths = editor.files.map((f) => f.targetPath);
-        expect(paths).toContain(".zed/settings.json");
-    });
-
-    test("Editor Setup excludes .zed/settings.json when tooling is eslint-prettier", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "eslint-prettier",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const editor = groups.find((g) => g.label === "Editor Setup");
-
-        if (!editor) throw new Error("expected group");
-        const paths = editor.files.map((f) => f.targetPath);
-        expect(paths).not.toContain(".zed/settings.json");
-    });
-
     test("API Client uses lib/ paths when no src directory exists", () => {
         const ctx: GeneratorContext = {
             cwd: tempDir,
