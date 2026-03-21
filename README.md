@@ -1,6 +1,6 @@
 # react-extras
 
-A CLI tool that automates the setup of deployment, linting, and editor configuration for Next.js and Vite + TanStack Router React applications.
+A CLI tool that adds deployment, editor, pre-commit, and API client setup to supported React projects.
 
 ## Installation
 
@@ -25,37 +25,43 @@ react-extras
 The CLI will:
 
 1. Detect your package manager, framework, and linting tools
-2. Show a list of files that will be created
-3. Prompt for confirmation before overwriting existing files
-4. Generate configuration files
-5. Install required dependencies (husky, lint-staged)
+2. Build a list of available extras for the detected project
+3. Let you choose which extras to add
+4. Show which files will be created and prompt before overwriting existing files
+5. Generate the selected files, update `package.json`, and install any required dependencies
 
-## Generated Files
+## Available Extras
 
-| File | Description |
+| Extra | Files / changes |
 |------|-------------|
-| `.github/workflows/deploy.yml` | GitHub Actions CI/CD workflow |
-| `Dockerfile` | Multi-stage Docker build configuration |
-| `.husky/pre-commit` | Pre-commit hook for linting |
-| `.vscode/extensions.json` | Recommended VS Code extensions |
-| `.vscode/settings.json` | VS Code workspace settings (Next.js projects only) |
-| `.editorconfig` | Editor configuration for consistent formatting |
-| `lib/api-client.ts` | Type-safe API client (placed in `src/lib` if `src` directory exists) |
-| `nginx.conf` | Nginx configuration (Vite projects only) |
+| `Deployment + CI/CD` | `Dockerfile`, `.github/workflows/deploy.yml`, and `nginx.conf` for Vite projects |
+| `Editor Setup` | `.vscode/extensions.json` for all supported projects and `.vscode/settings.json` for Next.js projects |
+| `Pre-commit Hook` | `.husky/pre-commit`, `prepare` script, `lint-staged` config, and installs `husky` + `lint-staged` |
+| `API Client` | `lib/api-client.ts` and `lib/config.ts` or `src/lib/*` when a `src/` directory exists |
 
 The CLI also updates your `package.json` with:
 
-- `prepare` script for Husky initialization
-- `typecheck` script for TypeScript compilation
-- `check` script for running lint and format checks (Next.js only)
-- `lint-staged` configuration
+- `check` and `typecheck` scripts when `Deployment + CI/CD` is selected
+- `prepare` script and `lint-staged` config when `Pre-commit Hook` is selected
+
+The generated `check` script depends on detected tooling:
+
+- Biome: `biome check .`
+- ESLint + Prettier: `eslint . && prettier --check .`
 
 ## Requirements
 
 - Node.js >= 18
+- Bun >= 1 for local development of this CLI
 - An existing React project with `package.json`
 
 ## Supported Frameworks
 
 - Next.js (manually add `output: "standalone"` if you select `Deployment + CI/CD`)
 - Vite + TanStack Router ([Quick Start](https://tanstack.com/router/v1/docs/framework/react/quick-start))
+
+## Detection Rules
+
+- Package manager: detected from lock files in this order: Bun, pnpm, Yarn, npm
+- Framework: Next.js via `next.config.*` or the `next` dependency; otherwise Vite + TanStack Router via `vite` and `@tanstack/react-router`
+- Tooling: Biome via `biome.json`, `biome.jsonc`, or `@biomejs/biome`; otherwise ESLint + Prettier via dependencies
