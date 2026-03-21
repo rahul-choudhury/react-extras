@@ -38,6 +38,7 @@ The CLI will:
 | `Dockerfile` | Multi-stage Docker build configuration |
 | `.husky/pre-commit` | Pre-commit hook for linting |
 | `.vscode/extensions.json` | Recommended VS Code extensions |
+| `.vscode/settings.json` | VS Code workspace settings (Next.js projects only) |
 | `.editorconfig` | Editor configuration for consistent formatting |
 | `lib/api-client.ts` | Type-safe API client (placed in `src/lib` if `src` directory exists) |
 | `nginx.conf` | Nginx configuration (Vite projects only) |

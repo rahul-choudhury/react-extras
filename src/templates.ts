@@ -117,6 +117,11 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
                 targetPath: ".vscode/extensions.json",
                 render: (ctx) => generateExtensionsJson(ctx.tooling),
             },
+            {
+                targetPath: ".vscode/settings.json",
+                render: renderTemplate("vscode/settings.json"),
+                when: (ctx) => ctx.framework === "nextjs",
+            },
         ],
     },
     {

@@ -83,6 +83,38 @@ describe("resolveGroups", () => {
         expect(paths).toContain("nginx.conf");
     });
 
+    test("Editor Setup includes VS Code settings for nextjs", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const editorSetup = groups.find((g) => g.id === "editor-setup");
+
+        if (!editorSetup) throw new Error("expected group");
+        const paths = editorSetup.files.map((f) => f.targetPath);
+        expect(paths).toContain(".vscode/extensions.json");
+        expect(paths).toContain(".vscode/settings.json");
+    });
+
+    test("Editor Setup skips VS Code settings for non-nextjs projects", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "vite-tanstack-router",
+        };
+        const groups = resolveGroups(ctx);
+        const editorSetup = groups.find((g) => g.id === "editor-setup");
+
+        if (!editorSetup) throw new Error("expected group");
+        const paths = editorSetup.files.map((f) => f.targetPath);
+        expect(paths).toContain(".vscode/extensions.json");
+        expect(paths).not.toContain(".vscode/settings.json");
+    });
+
     test("API Client uses lib/ paths when no src directory exists", () => {
         const ctx: GeneratorContext = {
             cwd: tempDir,
@@ -201,6 +233,27 @@ describe("resolveGroups", () => {
         for (const group of groups) {
             expect(group.files.length > 0).toBe(true);
         }
+    });
+
+    test("resolves VS Code settings content from template for nextjs", () => {
+        const ctx: GeneratorContext = {
+            cwd: tempDir,
+            pm: "npm",
+            tooling: "biome",
+            framework: "nextjs",
+        };
+        const groups = resolveGroups(ctx);
+        const editorSetup = groups.find((g) => g.id === "editor-setup");
+        const settingsFile = editorSetup?.files.find(
+            (file) => file.targetPath === ".vscode/settings.json",
+        );
+
+        expect(settingsFile?.content).toContain(
+            '"editor.defaultFormatter": "biomejs.biome"',
+        );
+        expect(settingsFile?.content).toContain(
+            '"source.organizeImports.biome": "explicit"',
+        );
     });
 });
 
