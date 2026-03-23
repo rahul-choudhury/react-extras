@@ -35,7 +35,7 @@ The CLI will:
 | Extra | Files / changes |
 |------|-------------|
 | `Deployment + CI/CD` | `Dockerfile`, `.github/workflows/deploy.yml`, and `nginx.conf` for Vite projects |
-| `Editor Setup` | `.vscode/extensions.json` for all supported projects and `.vscode/settings.json` for Next.js projects |
+| `Editor Setup` | `.vscode/extensions.json` and tooling-aware `.zed/settings.json` for all supported projects, plus `.vscode/settings.json` for Next.js projects |
 | `Pre-commit Hook` | `.husky/pre-commit`, `prepare` script, `lint-staged` config, and installs `husky` + `lint-staged` |
 | `API Client` | `lib/api-client.ts` and `lib/config.ts` or `src/lib/*` when a `src/` directory exists |
 
@@ -48,6 +48,11 @@ The generated `check` script depends on detected tooling:
 
 - Biome: `biome check .`
 - ESLint + Prettier: `eslint . && prettier --check .`
+
+The generated Zed settings also depend on detected tooling:
+
+- Biome: uses the Biome language server as the formatter and runs Biome fix/import actions on format
+- ESLint + Prettier: disables Biome language servers for supported frontend languages
 
 ## Requirements
 

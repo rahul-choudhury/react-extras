@@ -2,6 +2,16 @@ import type { Framework } from "./detect-framework.js";
 import { getPMConfig, type PackageManager } from "./detect-pm.js";
 import type { Tooling } from "./detect-tooling.js";
 
+const ZED_LANGUAGE_NAMES = [
+    "CSS",
+    "HTML",
+    "JSON",
+    "JSONC",
+    "JavaScript",
+    "TSX",
+    "TypeScript",
+] as const;
+
 export function getCheckScript(tooling: Tooling): string {
     return tooling === "biome"
         ? "biome check ."
@@ -144,6 +154,27 @@ export function generateExtensionsJson(tooling: Tooling): string {
               ];
 
     return `${JSON.stringify({ recommendations: extensions }, null, 2)}\n`;
+}
+
+export function generateZedSettings(tooling: Tooling): string {
+    const languages = Object.fromEntries(
+        ZED_LANGUAGE_NAMES.map((language) => [
+            language,
+            tooling === "biome"
+                ? {
+                      formatter: { language_server: { name: "biome" } },
+                      code_actions_on_format: {
+                          "source.fixAll.biome": true,
+                          "source.organizeImports.biome": true,
+                      },
+                  }
+                : {
+                      language_servers: ["!biome", "..."],
+                  },
+        ]),
+    );
+
+    return `${JSON.stringify({ languages }, null, 2)}\n`;
 }
 
 export function generateConfigTs(framework: Framework): string {
