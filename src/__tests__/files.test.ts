@@ -274,9 +274,7 @@ describe("resolveGroups", () => {
         expect(settingsFile?.content).toContain(
             '"formatter": {\n        "language_server": {\n          "name": "biome"',
         );
-        expect(settingsFile?.content).toContain(
-            '"source.fixAll.biome": true',
-        );
+        expect(settingsFile?.content).toContain('"source.fixAll.biome": true');
         expect(settingsFile?.content).toContain(
             '"source.organizeImports.biome": true',
         );
