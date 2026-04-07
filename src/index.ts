@@ -125,7 +125,6 @@ async function main() {
         }
     }
 
-    let filesToSkip: string[] = [];
     if (plan.existingFiles.length > 0) {
         const filesToOverwrite = await multiselectOrExit<string>({
             message: "Some files already exist. Select files to overwrite:",
@@ -135,7 +134,7 @@ async function main() {
             })),
             required: false,
         });
-        filesToSkip = plan.existingFiles
+        const filesToSkip = plan.existingFiles
             .filter(({ file }) => !filesToOverwrite.includes(file.targetPath))
             .map(({ file }) => file.targetPath);
         plan = buildSetupPlan({ cwd, groups: selected, filesToSkip });

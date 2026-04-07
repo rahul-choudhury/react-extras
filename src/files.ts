@@ -121,7 +121,9 @@ export function copyFile(cwd: string, file: ResolvedFile): void {
     if (file.executable) {
         try {
             chmodSync(targetPath, 0o755);
-        } catch {}
+        } catch {
+            // Ignore chmod failures on filesystems that do not support Unix modes.
+        }
     }
 }
 

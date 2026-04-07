@@ -255,7 +255,6 @@ describe("resolveGroups", () => {
             '"source.organizeImports.biome": "explicit"',
         );
     });
-
 });
 
 describe("buildSetupPlan", () => {

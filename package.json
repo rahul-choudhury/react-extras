@@ -1,49 +1,51 @@
 {
-  "name": "@rahul-choudhury/react-extras",
-  "version": "0.8.0",
-  "description": "Set up deployment, linting, and editor configuration for React apps",
-  "author": "Rahul Choudhury",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/rahul-choudhury/react-extras.git"
-  },
-  "keywords": [
-    "react",
-    "nextjs",
-    "vite",
-    "docker",
-    "deployment",
-    "husky",
-    "biome",
-    "eslint"
-  ],
-  "type": "module",
-  "bin": {
-    "react-extras": "dist/index.js"
-  },
-  "files": [
-    "dist",
-    "templates"
-  ],
-  "scripts": {
-    "build": "bun build ./src/index.ts --outdir ./dist --target node",
-    "dev": "bun --watch ./src/index.ts",
-    "lint": "biome lint ./src",
-    "format": "biome format --write ./src",
-    "check": "biome check --write ./src",
-    "typecheck": "bunx tsc --noEmit"
-  },
-  "dependencies": {
-    "@clack/prompts": "^0.10.0"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.12",
-    "@types/bun": "^1.2.0",
-    "@types/node": "^22.10.10"
-  },
-  "engines": {
-    "node": ">=18",
-    "bun": ">=1"
-  },
-  "license": "MIT"
+    "name": "@rahul-choudhury/react-extras",
+    "version": "0.8.0",
+    "description": "Set up deployment, linting, and editor configuration for React apps",
+    "author": "Rahul Choudhury",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/rahul-choudhury/react-extras.git"
+    },
+    "keywords": [
+        "react",
+        "nextjs",
+        "vite",
+        "docker",
+        "deployment",
+        "husky",
+        "eslint"
+    ],
+    "type": "module",
+    "bin": {
+        "react-extras": "dist/index.js"
+    },
+    "files": [
+        "dist",
+        "templates"
+    ],
+    "scripts": {
+        "build": "bun build ./src/index.ts --outdir ./dist --target node",
+        "dev": "bun --watch ./src/index.ts",
+        "lint": "eslint .",
+        "format": "prettier --write .",
+        "check": "eslint . && prettier --check .",
+        "typecheck": "bunx tsc --noEmit"
+    },
+    "dependencies": {
+        "@clack/prompts": "^0.10.0"
+    },
+    "devDependencies": {
+        "@types/bun": "^1.2.0",
+        "@types/node": "^22.10.10",
+        "@eslint/js": "^10.0.1",
+        "eslint": "^10.2.0",
+        "prettier": "^3.8.1",
+        "typescript-eslint": "^8.58.0"
+    },
+    "engines": {
+        "node": ">=18",
+        "bun": ">=1"
+    },
+    "license": "MIT"
 }

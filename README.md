@@ -32,12 +32,12 @@ The CLI will:
 
 ## Available Extras
 
-| Extra | Files / changes |
-|------|-------------|
-| `Deployment + CI/CD` | `Dockerfile`, `.github/workflows/deploy.yml`, and `nginx.conf` for Vite projects |
-| `Editor Setup` | `.vscode/extensions.json` for all supported projects, plus `.vscode/settings.json` for Next.js projects |
-| `Pre-commit Hook` | `.husky/pre-commit`, `prepare` script, `lint-staged` config, and installs `husky` + `lint-staged` |
-| `API Client` | `lib/api-client.ts` and `lib/config.ts` or `src/lib/*` when a `src/` directory exists |
+| Extra                | Files / changes                                                                                         |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `Deployment + CI/CD` | `Dockerfile`, `.github/workflows/deploy.yml`, and `nginx.conf` for Vite projects                        |
+| `Editor Setup`       | `.vscode/extensions.json` for all supported projects, plus `.vscode/settings.json` for Next.js projects |
+| `Pre-commit Hook`    | `.husky/pre-commit`, `prepare` script, `lint-staged` config, and installs `husky` + `lint-staged`       |
+| `API Client`         | `lib/api-client.ts` and `lib/config.ts` or `src/lib/*` when a `src/` directory exists                   |
 
 The CLI also updates your `package.json` with:
 

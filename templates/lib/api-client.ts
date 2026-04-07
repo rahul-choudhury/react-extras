@@ -58,7 +58,11 @@ function buildUrl(
 async function parseResponse(response: Response): Promise<unknown> {
     const contentType = response.headers.get("content-type");
 
-    if (response.status === 204 || response.status === 205 || response.status === 304) {
+    if (
+        response.status === 204 ||
+        response.status === 205 ||
+        response.status === 304
+    ) {
         return null;
     }
 
