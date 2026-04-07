@@ -96,7 +96,6 @@ describe("resolveGroups", () => {
         if (!editorSetup) throw new Error("expected group");
         const paths = editorSetup.files.map((f) => f.targetPath);
         expect(paths).toContain(".vscode/extensions.json");
-        expect(paths).toContain(".zed/settings.json");
         expect(paths).toContain(".vscode/settings.json");
     });
 
@@ -113,7 +112,6 @@ describe("resolveGroups", () => {
         if (!editorSetup) throw new Error("expected group");
         const paths = editorSetup.files.map((f) => f.targetPath);
         expect(paths).toContain(".vscode/extensions.json");
-        expect(paths).toContain(".zed/settings.json");
         expect(paths).not.toContain(".vscode/settings.json");
     });
 
@@ -258,47 +256,6 @@ describe("resolveGroups", () => {
         );
     });
 
-    test("resolves Biome Zed settings content for nextjs", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "biome",
-            framework: "nextjs",
-        };
-        const groups = resolveGroups(ctx);
-        const editorSetup = groups.find((g) => g.id === "editor-setup");
-        const settingsFile = editorSetup?.files.find(
-            (file) => file.targetPath === ".zed/settings.json",
-        );
-
-        expect(settingsFile?.content).toContain(
-            '"formatter": {\n        "language_server": {\n          "name": "biome"',
-        );
-        expect(settingsFile?.content).toContain('"source.fixAll.biome": true');
-        expect(settingsFile?.content).toContain(
-            '"source.organizeImports.biome": true',
-        );
-    });
-
-    test("resolves eslint-prettier Zed settings content for vite", () => {
-        const ctx: GeneratorContext = {
-            cwd: tempDir,
-            pm: "npm",
-            tooling: "eslint-prettier",
-            framework: "vite-tanstack-router",
-        };
-        const groups = resolveGroups(ctx);
-        const editorSetup = groups.find((g) => g.id === "editor-setup");
-        const settingsFile = editorSetup?.files.find(
-            (file) => file.targetPath === ".zed/settings.json",
-        );
-
-        expect(settingsFile?.content).toContain('"CSS": {');
-        expect(settingsFile?.content).toContain(
-            '"language_servers": [\n        "!biome",\n        "..."',
-        );
-        expect(settingsFile?.content).toContain('"TypeScript": {');
-    });
 });
 
 describe("buildSetupPlan", () => {

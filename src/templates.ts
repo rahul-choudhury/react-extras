@@ -10,7 +10,6 @@ import {
     generateDockerfile,
     generateExtensionsJson,
     generatePreCommitHook,
-    generateZedSettings,
     getCheckScript,
 } from "./generators.js";
 
@@ -117,10 +116,6 @@ export const TEMPLATE_GROUPS: TemplateGroup[] = [
             {
                 targetPath: ".vscode/extensions.json",
                 render: (ctx) => generateExtensionsJson(ctx.tooling),
-            },
-            {
-                targetPath: ".zed/settings.json",
-                render: (ctx) => generateZedSettings(ctx.tooling),
             },
             {
                 targetPath: ".vscode/settings.json",
