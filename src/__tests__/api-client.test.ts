@@ -43,6 +43,32 @@ function createMockFetch(handler: FetchHandler) {
 }
 
 describe("createApiClient", () => {
+    test("ApiError exposes status metadata", async () => {
+        const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
+        const { ApiError } = await loadApiClient(tempDir);
+
+        const error = new ApiError(418, "I'm a teapot", { ok: false });
+
+        expect(error.message).toBe("418 I'm a teapot");
+        expect(error.status).toBe(418);
+        expect(error.statusText).toBe("I'm a teapot");
+        expect(error.data).toEqual({ ok: false });
+        rmSync(tempDir, { recursive: true, force: true });
+    });
+
+    test("template avoids syntax and patterns rejected by stricter app setups", () => {
+        const apiClientSource = readFileSync(
+            join(process.cwd(), "templates/lib/api-client.ts"),
+            "utf-8",
+        );
+
+        expect(apiClientSource).not.toContain("public status:");
+        expect(apiClientSource).not.toContain("public statusText:");
+        expect(apiClientSource).not.toContain("public data:");
+        expect(apiClientSource).not.toContain("window.location?.origin");
+        expect(apiClientSource).not.toContain("let request = new Request");
+    });
+
     test("does not set Content-Type for GET without body", async () => {
         const tempDir = mkdtempSync(join(tmpdir(), "api-client-test-"));
         const { createApiClient } = await loadApiClient(tempDir);

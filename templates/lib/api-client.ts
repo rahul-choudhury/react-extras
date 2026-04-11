@@ -14,13 +14,16 @@ type ApiClientConfig = {
 };
 
 export class ApiError extends Error {
-    constructor(
-        public status: number,
-        public statusText: string,
-        public data: unknown,
-    ) {
+    status: number;
+    statusText: string;
+    data: unknown;
+
+    constructor(status: number, statusText: string, data: unknown) {
         super(`${status} ${statusText}`);
         this.name = "ApiError";
+        this.status = status;
+        this.statusText = statusText;
+        this.data = data;
     }
 }
 
@@ -36,7 +39,7 @@ function buildUrl(
         url = new URL(path, trimmedBaseUrl);
     } else if (/^https?:\/\//i.test(path)) {
         url = new URL(path);
-    } else if (typeof window !== "undefined" && window.location?.origin) {
+    } else if (typeof window !== "undefined" && window.location.origin) {
         url = new URL(path, window.location.origin);
     } else {
         throw new Error(
@@ -121,7 +124,7 @@ export function createApiClient(config: ApiClientConfig) {
             }
         }
 
-        let request = new Request(url, {
+        let requestInstance = new Request(url, {
             ...init,
             headers: resolvedHeaders,
             body: isFormData
@@ -132,10 +135,10 @@ export function createApiClient(config: ApiClientConfig) {
         });
 
         if (onRequest) {
-            request = await onRequest(request);
+            requestInstance = await onRequest(requestInstance);
         }
 
-        let response = await fetch(request);
+        let response = await fetch(requestInstance);
 
         if (onResponse) {
             response = await onResponse(response);
