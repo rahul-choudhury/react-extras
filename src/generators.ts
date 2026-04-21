@@ -12,6 +12,7 @@ export function generateDeployYml(pm: PackageManager, cwd: string): string {
     const config = getPMConfig(pm, { cwd });
     return `name: Deploy
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
 env:
